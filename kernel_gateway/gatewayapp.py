@@ -127,6 +127,13 @@ class KernelGatewayApp(JupyterApp):
     def _seed_uri_default(self):
         return os.getenv(self.seed_uri_env)
 
+    default_kernel_name_env = 'KG_DEFAULT_KERNEL_NAME'
+    default_kernel_name = Unicode(config=True,
+        help='''The default kernel name to use when spawning a kernel (KG_DEFAULT_KERNEL_NAME env var)''')
+    def _default_kernel_name_default(self):
+        # default to Jupyter's default kernel name
+        return os.getenv(self.default_kernel_name_env, '')
+
     def _load_notebook(self, uri):
         '''
         Loads a local or remote notebook. Raises RuntimeError if no installed 
@@ -211,7 +218,8 @@ class KernelGatewayApp(JupyterApp):
             kg_allow_origin=self.allow_origin,
             kg_expose_headers=self.expose_headers,
             kg_max_age=self.max_age,
-            kg_max_kernels=self.max_kernels
+            kg_max_kernels=self.max_kernels,
+            kg_default_kernel_name = self.default_kernel_name
         )
 
     def init_http_server(self):

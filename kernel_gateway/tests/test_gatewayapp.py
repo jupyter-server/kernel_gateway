@@ -39,6 +39,7 @@ class TestGatewayAppConfig(unittest.TestCase):
         os.environ['KG_MAX_AGE'] = '5'
         os.environ['KG_BASE_URL'] = '/fake/path'
         os.environ['KG_MAX_KERNELS'] = '1'
+        os.environ['KG_DEFAULT_KERNEL_NAME'] = 'fake_kernel'
 
         app = KernelGatewayApp()
         
@@ -53,6 +54,7 @@ class TestGatewayAppConfig(unittest.TestCase):
         self.assertEqual(app.max_age, '5')
         self.assertEqual(app.base_url, '/fake/path')
         self.assertEqual(app.max_kernels, 1)
+        self.assertEqual(app.default_kernel_name, 'fake_kernel')
 
 class TestGatewayAppBase(AsyncHTTPTestCase, LogTrapTestCase):
     def get_new_ioloop(self):
@@ -216,6 +218,22 @@ class TestGatewayApp(TestGatewayAppBase):
         )
         ws = yield websocket_connect(ws_req)
         ws.close()
+
+    @gen_test
+    def test_default_kernel_name(self):
+        '''The default kernel name should be used on empty requests.'''
+        # Set token requirement
+        app = self.get_app()
+        app.settings['kg_default_kernel_name'] = 'fake-kernel'
+        # Request without an explicit kernel name
+        response = yield self.http_client.fetch(
+            self.get_url('/api/kernels'),
+            method='POST',
+            body='',
+            raise_error=False
+        )
+        self.assertEqual(response.code, 500)
+        self.assertTrue('raise NoSuchKernel' in str(response.body))
 
     @gen_test
     def test_cors_headers(self):
