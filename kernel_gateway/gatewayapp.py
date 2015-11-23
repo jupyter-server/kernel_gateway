@@ -1,6 +1,7 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
 import os
+import re
 import nbformat
 
 try:
@@ -8,7 +9,7 @@ try:
 except ImportError:
     from urllib.parse import urlparse
 
-from traitlets import Unicode, Integer
+from traitlets import Unicode, Integer, Bool
 
 from jupyter_core.application import JupyterApp
 from jupyter_client.kernelspec import KernelSpecManager
@@ -26,6 +27,7 @@ from .services.kernels.handlers import default_handlers as default_kernel_handle
 from .services.kernelspecs.handlers import default_handlers as default_kernelspec_handlers
 from .services.kernels.manager import SeedingMappingKernelManager
 from .base.handlers import default_handlers as default_base_handlers
+from .services.notebooks.handlers import NotebookAPIHandler
 
 from notebook.utils import url_path_join
 
@@ -144,9 +146,23 @@ class KernelGatewayApp(JupyterApp):
         # defaults to Jupyter's default kernel name on empty string
         return os.getenv(self.default_kernel_name_env, '')
 
+    list_kernels_env = 'KG_LIST_KERNELS'
+    list_kernels = Bool(config=True,
+        help='Controls whether /api/kernels will report running kernels and their IDs (KG_LIST_KERNELS env var)'
+    )
+    def _list_kernels_default(self):
+        return os.getenv(self.list_kernels_env, 'False') == 'True'
+
+    api_env = 'KG_API'
+    api = Unicode(config=True,
+        help='Designates that the kernel gateway will serve APIs from this notebook (KG_API env var)'
+    )
+    def _api_default(self):
+        return os.getenv(self.api_env)
+
     def _load_notebook(self, uri):
         '''
-        Loads a local or remote notebook. Raises RuntimeError if no installed 
+        Loads a local or remote notebook. Raises RuntimeError if no installed
         kernel can handle the language specified in the notebook. Otherwise,
         returns the notebook object.
         '''
@@ -169,9 +185,31 @@ class KernelGatewayApp(JupyterApp):
 
         return notebook
 
+    def _load_api_notebook(self, nb):
+        '''
+        Return a list of tuples containing the method+URI and the cell source
+        '''
+        endpoints = {}
+        #TODO: vary based on notebook kernel
+        indicator = re.compile('#\s+([A-Z]+)\s+(\/.*)+')
+        notebook = nbformat.read(self.api, 4)
+        for cell in notebook.cells:
+            # is its source annotated?
+            #TODO: starts with (very by notebook kernel language) GET|POST|PUT|DELETE:
+            matched = indicator.match(cell.source)
+            if matched is not None:
+                uri = matched.group(2)
+                verb = matched.group(1)
+                if uri not in endpoints:
+                    endpoints[uri] = {}
+                if verb not in endpoints[uri]:
+                    endpoints[uri][verb] = cell.source
+
+        return endpoints
+
     def initialize(self, argv=None):
         '''
-        Initialize base class, configurable Jupyter instances, the tornado web 
+        Initialize base class, configurable Jupyter instances, the tornado web
         app, and the tornado HTTP server.
         '''
         super(KernelGatewayApp, self).initialize(argv)
@@ -213,17 +251,53 @@ class KernelGatewayApp(JupyterApp):
         '''
         # Redefine handlers off the base_url path
         handlers = []
-        for handler in (
-            default_kernel_handlers + 
-            default_kernelspec_handlers +
-            default_base_handlers
-        ):
-            # Create a new handler pattern rooted at the base_url
-            pattern = url_path_join(self.base_url, handler[0])
-            # Some handlers take args, so retain those in addition to the
-            # handler class ref
-            new_handler = tuple([pattern] + list(handler[1:]))
-            handlers.append(new_handler)
+        if self.api:
+            kernel_id = self.kernel_manager.start_kernel()
+            kernel_client = self.kernel_manager.get_kernel(kernel_id).client()
+            kernel_client.start_channels()
+            # Get the kernel info message
+
+            endpoints = self._load_api_notebook(self.api)
+            for uri in endpoints:
+                print('registering uri {}'.format(uri))
+                handlers.append((uri, NotebookAPIHandler, {'sources' : endpoints[uri], 'kernel_client' : kernel_client}))
+
+            indicator = re.compile('#\s+([A-Z]+)\s+(\/.*)+')
+            notebook = nbformat.read(self.api, 4)
+
+            started = False
+            while not started:
+                # TODO: Investigate timining issue where kernel never starts up to meet the exit this loop
+                iopub_message = kernel_client.get_iopub_msg(block=True)
+                if iopub_message['msg_type'] == 'status' and iopub_message['content']['execution_state'] == 'idle':
+                    started = True
+
+            for cell in notebook.cells:
+                # is its source annotated?
+                #TODO: starts with (very by notebook kernel language) GET|POST|PUT|DELETE:
+                matched = indicator.match(cell.source)
+                if matched is None:
+                    kernel_client.execute(cell.source)
+                    result_found = False
+                    while(not result_found):
+                        iopub_message = kernel_client.get_iopub_msg(block=True)
+                        if iopub_message['msg_type'] == 'status' and iopub_message['content']['execution_state'] == 'idle':
+                            result_found = True
+
+        else:
+            # append tuples for the standard kernel gateway endpoints
+            for handler in (
+                default_kernel_handlers +
+                default_kernelspec_handlers +
+                default_base_handlers
+            ):
+                # Create a new handler pattern rooted at the base_url
+                pattern = url_path_join(self.base_url, handler[0])
+                # Some handlers take args, so retain those in addition to the
+                # handler class ref
+                new_handler = tuple([pattern] + list(handler[1:]))
+                handlers.append(new_handler)
+
 
         self.web_app = web.Application(
             handlers=handlers,
@@ -236,7 +310,9 @@ class KernelGatewayApp(JupyterApp):
             kg_allow_origin=self.allow_origin,
             kg_expose_headers=self.expose_headers,
             kg_max_age=self.max_age,
-            kg_max_kernels=self.max_kernels
+            kg_max_kernels=self.max_kernels,
+            kg_list_kernels=self.list_kernels,
+            kg_api=self.api
         )
 
     def init_http_server(self):
@@ -256,7 +332,7 @@ class KernelGatewayApp(JupyterApp):
         ))
 
         self.io_loop = ioloop.IOLoop.current()
-        
+
         try:
             self.io_loop.start()
         except KeyboardInterrupt:
