@@ -262,7 +262,7 @@ class KernelGatewayApp(JupyterApp):
             kernel_id = self.kernel_manager.start_kernel()
             kernel_client = self.kernel_manager.get_kernel(kernel_id).client()
             kernel_client.start_channels()
-            # Get the kernel info message
+            kernel_client.wait_for_ready()
 
             endpoints = self._load_api_notebook(self.api)
             for uri in endpoints:
@@ -272,13 +272,6 @@ class KernelGatewayApp(JupyterApp):
 
             indicator = re.compile('#\s+([A-Z]+)\s+(\/.*)+')
             notebook = nbformat.read(self.api, 4)
-
-            started = False
-            while not started:
-                # TODO: Investigate timining issue where kernel never starts up to meet the exit this loop
-                iopub_message = kernel_client.get_iopub_msg(block=True)
-                if iopub_message['msg_type'] == 'status' and iopub_message['content']['execution_state'] == 'idle':
-                    started = True
 
             for cell in notebook.cells:
                 # is its source annotated?
