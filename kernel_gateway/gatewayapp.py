@@ -3,6 +3,7 @@
 import os
 import re
 import nbformat
+import sys
 
 try:
     from urlparse import urlparse
@@ -185,6 +186,25 @@ class KernelGatewayApp(JupyterApp):
 
         return notebook
 
+    def _first_path_param_index(self, endpoint):
+        '''Returns the index to the first path parameter for the endpoint. The
+        index is not the string index, but rather where it is within the path.
+        For example:
+            _first_path_param_index('/foo/:bar') # returns 1
+            _first_path_param_index('/foo/quo/:bar') # return 2
+            _first_path_param_index('/foo/quo/bar') # return sys.maxsize
+        '''
+        index = sys.maxsize
+        if endpoint.find(':') >= 0:
+            index = endpoint.count('/', 0, endpoint.find(':')) - 1
+        return index
+
+    def _sort_endpoints(self, endpoints):
+        '''Sorts the endpoints dictionary to be a list of endpoint string in order
+        from most specific to least specific.
+        '''
+        return sorted(endpoints, key=self._first_path_param_index, reverse=True)
+
     def _load_api_notebook(self, nb):
         '''
         Return a list of tuples containing the method+URI and the cell source
@@ -265,7 +285,8 @@ class KernelGatewayApp(JupyterApp):
             kernel_client.wait_for_ready()
 
             endpoints = self._load_api_notebook(self.api)
-            for uri in endpoints:
+            sorted_endpoints = self._sort_endpoints(endpoints)
+            for uri in sorted_endpoints:
                 paramterized_path = self._parameterize_path(uri)
                 print('registering uri {}'.format(paramterized_path))
                 handlers.append((paramterized_path, NotebookAPIHandler, {'sources' : endpoints[uri], 'kernel_client' : kernel_client}))
