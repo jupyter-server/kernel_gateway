@@ -3,6 +3,8 @@
 import tornado.web
 import json
 from queue import Empty
+from .request_utils import *
+
 class NotebookAPIHandler(tornado.web.RequestHandler):
     get_source = None
     put_source = None
@@ -44,13 +46,11 @@ class NotebookAPIHandler(tornado.web.RequestHandler):
         if source_code is None:
             self.set_status(405)
             self.finish()
-
             return
 
-        body = self.request.body.decode(encoding='UTF-8')
-        # TODO: Add query params to the request 
         REQUEST = json.dumps({
-            'body' : json.loads(body) if body is not None and body is not '' else ''
+            'body' : body_to_json(self.request.body),
+            'args' : args_to_json(self.request.arguments)
         })
         request_code = "REQUEST = '"  + REQUEST + "'"
 
