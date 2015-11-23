@@ -243,6 +243,13 @@ class KernelGatewayApp(JupyterApp):
             for _ in range(self.prespawn_count):
                 self.kernel_manager.start_kernel()
 
+    def _parameterize_path(self, path):
+        named_param_regex = re.compile('(:([^/]*))')
+        matches = re.findall(named_param_regex, path)
+        for match in matches:
+            path = path.replace(match[0], '(?P<{}>[^\/]+)'.format(match[1]))
+        return path
+
     def init_webapp(self):
         '''
         Initialize tornado web application with kernel handlers. Put the kernel
@@ -259,8 +266,9 @@ class KernelGatewayApp(JupyterApp):
 
             endpoints = self._load_api_notebook(self.api)
             for uri in endpoints:
-                print('registering uri {}'.format(uri))
-                handlers.append((uri, NotebookAPIHandler, {'sources' : endpoints[uri], 'kernel_client' : kernel_client}))
+                paramterized_path = self._parameterize_path(uri)
+                print('registering uri {}'.format(paramterized_path))
+                handlers.append((paramterized_path, NotebookAPIHandler, {'sources' : endpoints[uri], 'kernel_client' : kernel_client}))
 
             indicator = re.compile('#\s+([A-Z]+)\s+(\/.*)+')
             notebook = nbformat.read(self.api, 4)

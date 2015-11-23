@@ -49,11 +49,13 @@ class NotebookAPIHandler(tornado.web.RequestHandler):
             return
 
         REQUEST = json.dumps({
-            'body' : body_to_json(self.request.body),
-            'args' : args_to_json(self.request.arguments)
+            'body' : parse_body(self.request.body),
+            'args' : parse_args(self.request.arguments),
+            'path' : self.path_kwargs
         })
         request_code = "REQUEST = '"  + REQUEST + "'"
 
+        print('REQUEST code is:\n ', request_code)
         # TODO: Need to figure out multil-lang assignment
         self._send_code(request_code, False)
         result = self._send_code(source_code)
@@ -64,20 +66,20 @@ class NotebookAPIHandler(tornado.web.RequestHandler):
         self.set_status(200)
         self.finish()
 
-    def get(self):
+    def get(self, **kwargs):
         # execute the get_source
         self._handle_request(self.get_source)
 
-    def post(self):
+    def post(self, **kwargs):
         # execute the post_source
         self._handle_request(self.post_source)
 
-    def put(self):
+    def put(self, **kwargs):
         # execute the put_source
         print('in put method')
         self._handle_request(self.put_source)
 
-    def delete(self):
+    def delete(self, **kwargs):
         print('in delete method')
         # execute the delete_source
         self._handle_request(self.delete_source)
