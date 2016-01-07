@@ -27,13 +27,6 @@ class NotebookAPIHandler(TokenAuthorizationMixin, CORSMixin, tornado.web.Request
         self.sources = sources
         self.kernel_name = kernel_name
 
-    def _format_request(self, expression):
-        #Escape the quotes in the request JSON string
-        expression = expression.replace('\"', '\\"')
-        #Note some languages do not support single quoted strings, thus double quotes are used when formatting the request statement
-        statement = "REQUEST = \"{}\""
-        return statement.format(expression)
-
     def on_recv(self, msg):
         '''
         Receives messages for a particular code execution defined by self.parent_header.
@@ -89,7 +82,7 @@ class NotebookAPIHandler(TokenAuthorizationMixin, CORSMixin, tornado.web.Request
                 'path' : self.path_kwargs,
                 'headers' : headers_to_dict(self.request.headers)
             })
-            request_code = self._format_request(REQUEST)
+            request_code = format_request(REQUEST)
             access_log.debug('Request code for notebook cell is: {}'.format(request_code))
             kernel_client.execute(request_code)
             self.parent_header = kernel_client.execute(source_code)
