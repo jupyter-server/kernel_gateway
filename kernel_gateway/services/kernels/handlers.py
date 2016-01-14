@@ -3,6 +3,7 @@
 
 import tornado
 import notebook.services.kernels.handlers as notebook_handlers
+from notebook.base.handlers import IPythonHandler
 from ...mixins import TokenAuthorizationMixin, CORSMixin
 
 class MainKernelHandler(TokenAuthorizationMixin, 
@@ -43,6 +44,9 @@ class MainKernelHandler(TokenAuthorizationMixin,
             else:
                 model.setdefault('name', self.settings['kg_default_kernel_name'])
         return model
+
+    def write_error(self, status_code, **kwargs):
+        super(IPythonHandler, self).write_error(status_code, **kwargs)
 
 default_handlers = []
 for path, cls in notebook_handlers.default_handlers:
