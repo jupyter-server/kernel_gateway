@@ -596,3 +596,48 @@ class TestBadSeedURI(TestJupyterWebsocket):
         app = KernelGatewayApp()
         app.seed_uri = os.path.join(RESOURCES, 'unknown_kernel.ipynb')
         self.assertRaises(NoSuchKernel, app.init_configurables)
+
+class TestSessions(TestJupyterWebsocket):
+    @gen_test
+    def test_get_sessions(self):
+        self.app.web_app.settings['kg_list_kernels'] = True
+        '''Server should respond with session information.'''
+        response = yield self.http_client.fetch(
+            self.get_url('/api/sessions')
+        )
+        self.assertEqual(response.code, 200)
+        sessions = json_decode(response.body)
+        self.assertEqual(len(sessions), 0)
+
+        # Launch a session
+        response = yield self.http_client.fetch(
+            self.get_url('/api/sessions'),
+            method='POST',
+            body='{"id":"any","notebook":{"path":"anywhere"},"kernel":{"name":"python"}}'
+        )
+        self.assertEqual(response.code, 201)
+        session = json_decode(response.body)
+
+        # Check the list again
+        response = yield self.http_client.fetch(
+            self.get_url('/api/sessions')
+        )
+        self.assertEqual(response.code, 200)
+        sessions = json_decode(response.body)
+        self.assertEqual(len(sessions), 1)
+        self.assertEqual(sessions[0]['id'], session['id'])
+
+        # Delete the session
+        response = yield self.http_client.fetch(
+            self.get_url('/api/sessions/'+session['id']),
+            method='DELETE'
+        )
+        self.assertEqual(response.code, 204)
+
+        # Make sure the list is empty
+        response = yield self.http_client.fetch(
+            self.get_url('/api/sessions')
+        )
+        self.assertEqual(response.code, 200)
+        sessions = json_decode(response.body)
+        self.assertEqual(len(sessions), 0)
