@@ -12,9 +12,8 @@ install:
     - pip install -f travis-wheels/wheelhouse dist/*.whl
     - rm -rf travis-wheels
 script:
-    #- python -B -m unittest discover -s kernel_gateway/tests -t $PWD
-    - nosetests
     - jupyter kernelgateway --help
+    - nosetests -x
     - pip uninstall -y jupyter_kernel_gateway
 matrix:
     fast_finish: true
