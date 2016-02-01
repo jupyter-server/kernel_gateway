@@ -10,8 +10,10 @@ before_install:
 install:
     - python setup.py bdist_wheel sdist
     - pip install -f travis-wheels/wheelhouse dist/*.whl
+    - rm -rf travis-wheels
 script:
-    - python -B -m unittest discover -s kernel_gateway/tests -t $PWD
+    #- python -B -m unittest discover -s kernel_gateway/tests -t $PWD
+    - nosetests
     - jupyter kernelgateway --help
     - pip uninstall -y jupyter_kernel_gateway
 matrix:
