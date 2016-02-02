@@ -13,7 +13,7 @@ install:
     - rm -rf travis-wheels
 script:
     # - jupyter kernelgateway --help
-    - nosetests -x --process-restartworker
+    - strace nosetests -x #--process-restartworker
     # - pip uninstall -y jupyter_kernel_gateway
 matrix:
     fast_finish: true
