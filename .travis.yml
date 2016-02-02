@@ -1,20 +1,32 @@
-sudo: false
+sudo: required
 language: python
 python:
-    - 2.7
-    - 3.3
     - 3.4
-    - 3.5
-before_install:
-    - git clone --quiet --depth 1 https://github.com/minrk/travis-wheels travis-wheels
-install:
-    - python setup.py bdist_wheel sdist
-    - pip install -f travis-wheels/wheelhouse dist/*.whl
-    - rm -rf travis-wheels
-    - pip freeze
+services:
+    - docker
 script:
-    # - jupyter kernelgateway --help
-    - nosetests -x --process-restartworker
-    # - pip uninstall -y jupyter_kernel_gateway
-matrix:
-    fast_finish: true
+    - make test-python2
+    - make test-python3
+    - make bdist sdist
+    - make install
+
+# sudo: false
+# language: python
+# python:
+#     - 2.7
+#     - 3.3
+#     - 3.4
+#     - 3.5
+# before_install:
+#     - git clone --quiet --depth 1 https://github.com/minrk/travis-wheels travis-wheels
+# install:
+#     - python setup.py bdist_wheel sdist
+#     - pip install -f travis-wheels/wheelhouse dist/*.whl
+#     - rm -rf travis-wheels
+#     - pip freeze
+# script:
+#     # - jupyter kernelgateway --help
+#     - nosetests -x --process-restartworker
+#     # - pip uninstall -y jupyter_kernel_gateway
+# matrix:
+#     fast_finish: true
