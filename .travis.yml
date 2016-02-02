@@ -11,9 +11,10 @@ install:
     - python setup.py bdist_wheel sdist
     - pip install -f travis-wheels/wheelhouse dist/*.whl
     - rm -rf travis-wheels
+    - pip freeze
 script:
     # - jupyter kernelgateway --help
-    - strace nosetests -x #--process-restartworker
+    - nosetests -x --process-restartworker
     # - pip uninstall -y jupyter_kernel_gateway
 matrix:
     fast_finish: true
