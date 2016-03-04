@@ -1,10 +1,7 @@
 language: python
 
 python:
-    - 3.5
-    - 3.4
-    - 3.3
-    - 2.7
+    - 3.5.1
 
 sudo: false
 
@@ -18,6 +15,7 @@ install:
     - pip install -f travis-wheels/wheelhouse dist/*.whl
     - pip install --upgrade jupyter-client
     - pip install --upgrade jupyter
+    - pip install --upgrade notebook
     
 script:
     - jupyter kernelgateway --help
