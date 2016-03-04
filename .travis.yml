@@ -15,5 +15,5 @@ install:
     - pip install -f travis-wheels/wheelhouse dist/*.whl
     
 script:
-    - jupyter kernelgateway
+    - jupyter kernelgateway --help
     - nosetests -xv --process-restartworker
