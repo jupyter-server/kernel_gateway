@@ -19,4 +19,4 @@ install:
     
 script:
     - jupyter kernelgateway --debug
-    - nosetests -x
+    - nosetests -xv --process-restartworker
