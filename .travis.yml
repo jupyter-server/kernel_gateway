@@ -10,12 +10,14 @@ sudo: false
 
 before_install:
     - pip install --upgrade pip
-    - pip install --upgrade setuptools wheel nose coverage codecov    
+    - pip install --upgrade setuptools wheel nose coverage codecov   
     - git clone --quiet --depth 1 https://github.com/minrk/travis-wheels travis-wheels
 
 install:
     - python setup.py bdist_wheel sdist
     - pip install -f travis-wheels/wheelhouse dist/*.whl
+    - pip install --upgrade jupyter-client
+    - pip install --upgrade jupyter
     
 script:
     - jupyter kernelgateway --help
