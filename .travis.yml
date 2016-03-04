@@ -2,9 +2,6 @@ language: python
 
 python:
     - 3.5.1
-    - 3.4
-    - 3.3
-    - 2.7
 
 sudo: false
 
@@ -18,5 +15,5 @@ install:
     - pip install -f travis-wheels/wheelhouse dist/*.whl
     
 script:
-    - jupyter kernelgateway --debug
+    - jupyter kernelgateway
     - nosetests -xv --process-restartworker
