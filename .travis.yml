@@ -19,4 +19,5 @@ install:
     
 script:
     - jupyter kernelgateway --help
-    - nosetests -x -d --verbosity=3 --process-restartworker
+    - nosetests -d --verbosity=3 --process-restartworker
+    
