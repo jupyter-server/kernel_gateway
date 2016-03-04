@@ -1,16 +1,20 @@
+"""A SeedingMappingKernelManager for use in starting kernel based on a seeded
+notebook or alternate parameters
+"""
+
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
 
 from notebook.services.kernels.kernelmanager import MappingKernelManager
 from ..cell.parser import APICellParser
 
+
 class SeedingMappingKernelManager(MappingKernelManager):
     @property
     def seed_kernelspec(self):
-        '''
-        Gets the kernel spec name required to run the seed notebook. Returns
+        """Gets the kernel spec name required to run the seed notebook. Returns
         None if no seed notebook exists.
-        '''
+        """
         if hasattr(self, '_seed_kernelspec'):
             return self._seed_kernelspec
 
@@ -23,10 +27,9 @@ class SeedingMappingKernelManager(MappingKernelManager):
 
     @property
     def seed_source(self):
-        '''
-        Gets the source of the seed notebook in cell order. Returns None if no
+        """Gets the source of the seed notebook in cell order. Returns None if no
         seed notebook exists.
-        '''
+        """
         if hasattr(self, '_seed_source'):
             return self._seed_source
 
@@ -41,18 +44,16 @@ class SeedingMappingKernelManager(MappingKernelManager):
         return self._seed_source
 
     def start_seeded_kernel(self, *args, **kwargs):
-        '''
-        Start a kernel using the language specified in the seed notebook. If
-        there is no seed notebook,  start a kernel using the other parameters
+        """Start a kernel using the language specified in the seed notebook. If
+        there is no seed notebook, start a kernel using the other parameters
         specified.
-        '''
+        """
         self.start_kernel(kernel_name=self.seed_kernelspec, *args, **kwargs)
 
     def start_kernel(self, *args, **kwargs):
-        '''
-        Starts a kernel and then optionally executes a list of code cells on it
-        before returning its ID.
-        '''
+        """Starts a kernel and then optionally executes a list of code cells on it
+        before returning its kernel ID.
+        """
         kernel_id = super(MappingKernelManager, self).start_kernel(*args, **kwargs)
 
         if kernel_id and self.seed_source is not None:
@@ -68,7 +69,7 @@ class SeedingMappingKernelManager(MappingKernelManager):
                 for code in self.seed_source:
                     # Execute every code cell and wait for each to succeed or fail
                     api_cell_parser = APICellParser(self.seed_kernelspec)
-                    if not api_cell_parser.is_api_cell(code) and not api_cell_parser.is_api_response_cell(code) :
+                    if not api_cell_parser.is_api_cell(code) and not api_cell_parser.is_api_response_cell(code):
                         client.execute(code)
                         msg = client.shell_channel.get_msg(block=True)
                         if msg['content']['status'] != 'ok':
