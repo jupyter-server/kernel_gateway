@@ -75,7 +75,7 @@ class JSONErrorsMixin(object):
             # Get the custom message, if defined
             try:
                 message = exception.log_message % exception.args
-            except Exception:
+            except ValueError:
                 pass
 
             # Construct the custom reason, if defined

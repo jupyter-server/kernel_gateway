@@ -596,8 +596,10 @@ class TestKernelLanguageSupport(TestJupyterWebsocket):
 
     # TODO
     @coroutine
-    def spawn_kernel(self):
-        '''Explicitly set the Python kernel version number when spawning.'''
+    def spawn_kernel(self, **kwargs):
+        '''Explicitly set the Python kernel version number when spawning.
+        :param **kwargs:
+        '''
         kernel_body = json.dumps({"name":"python{}".format(sys.version_info.major)})
         ws = yield super(TestKernelLanguageSupport, self).spawn_kernel(kernel_body)
         raise Return(ws)

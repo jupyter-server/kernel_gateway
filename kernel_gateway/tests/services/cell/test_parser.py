@@ -69,7 +69,7 @@ class TestAPICellParserUtils(unittest.TestCase):
             endpoint, _ = endpoints[index]
             self.assertEqual(expected_values[index], endpoint, 'Endpoint was not found in expected order')
 
-    def test_endpoints_are_sorted_default_strategy(self):
+    def test_endpoints_are_sorted_custom_strategy(self):
         '''Tests if the parser correctly creates a list of endpoint, source tuples using a custom sort strategy'''
         source_cells = [
             '# POST /1',
