@@ -108,7 +108,7 @@ class TestRequestUtils(unittest.TestCase):
         result = headers_to_dict(MockHeaders([]))
         self.assertEqual(result, {},'Empty headers handled incorrectly and did not make empty dict')
 
-        def test_format_request_code_not_escaped(self):
+    def test_format_request_code_not_escaped(self):
             '''Test formatting request code without escaped quotes'''
         test_request = ('{"body": "", "headers": {"Accept-Language": "en-US,en;q=0.8", '
                         '"If-None-Match": "9a28a9262f954494a8de7442c63d6d0715ce0998", '

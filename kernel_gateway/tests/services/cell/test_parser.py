@@ -77,11 +77,11 @@ class TestAPICellParserUtils(unittest.TestCase):
             '# GET /a'
         ]
 
-        def custom_sort_fun(endpoint):
-            index = sys.maxsize
-            if endpoint.find('1') >= 0:
+        def custom_sort_fun(newendpoint):
+            newindex = sys.maxsize
+            if newendpoint.find('1') >= 0:
                 return 0
-            elif endpoint.find('a') >= 0:
+            elif newendpoint.find('a') >= 0:
                 return 1
             else:
                 return 2
