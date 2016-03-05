@@ -51,7 +51,7 @@ class ActivityManager(object):
         '''Sets the value stored for *activity_type*. If the activity_type is not found, it
         will be created and assigned to *value*.
         '''
-        self.get_map_for_kernel(kernel_id)[activity_type] = value;
+        self.get_map_for_kernel(kernel_id)[activity_type] = value
 
 
     def increment_activity(self, kernel_id, activity_type):
@@ -59,14 +59,14 @@ class ActivityManager(object):
         is not an int, an TypeError will be raised. If the activity_type is not found, a
         KeyError will be raised.
         '''
-        self.get_map_for_kernel(kernel_id)[activity_type] += 1;
+        self.get_map_for_kernel(kernel_id)[activity_type] += 1
 
     def decrement_activity(self, kernel_id, activity_type):
         '''Decrements the value stored for *activity_type*. If the value currently stored
         is not an int, an TypeError will be raised. If the activity_type is not found, a
         KeyError will be raised.
         '''
-        self.get_map_for_kernel(kernel_id)[activity_type] -= 1;
+        self.get_map_for_kernel(kernel_id)[activity_type] -= 1
 
     def remove(self, kernel_id):
         '''Removes the activities for a kernel.'''
