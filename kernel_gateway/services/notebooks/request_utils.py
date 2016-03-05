@@ -42,7 +42,7 @@ def parse_body(request):
         # will treat the body as text
         try:
             return_body = json.loads(body)
-        except ValueError:
+        except Exception:
             pass
     return return_body
 
