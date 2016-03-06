@@ -65,18 +65,18 @@ class SeedingMappingKernelManager(MappingKernelManager):
                 if self.parent.api == 'notebook-http':
                     client.start_channels()
                     # client.wait_for_ready()
-                for code in self.seed_source:
-                    # Execute every code cell and wait for each to succeed or fail
-                    api_cell_parser = APICellParser(self.seed_kernelspec)
-                    if not api_cell_parser.is_api_cell(code) and not api_cell_parser.is_api_response_cell(code) :
-                        client.execute(code)
-                        msg = client.shell_channel.get_msg(block=True)
-                        if msg['content']['status'] != 'ok':
-                            # Shutdown the channels to remove any lingering ZMQ messages
-                            client.stop_channels()
-                            # Shutdown the kernel
-                            self.shutdown_kernel(kernel_id)
-                            raise RuntimeError('Error seeding kernel memory')
+                # for code in self.seed_source:
+                #     # Execute every code cell and wait for each to succeed or fail
+                #     api_cell_parser = APICellParser(self.seed_kernelspec)
+                #     if not api_cell_parser.is_api_cell(code) and not api_cell_parser.is_api_response_cell(code) :
+                #         client.execute(code)
+                #         msg = client.shell_channel.get_msg(block=True)
+                #         if msg['content']['status'] != 'ok':
+                #             # Shutdown the channels to remove any lingering ZMQ messages
+                #             client.stop_channels()
+                #             # Shutdown the kernel
+                #             self.shutdown_kernel(kernel_id)
+                #             raise RuntimeError('Error seeding kernel memory')
                 # Shutdown the channels to remove any lingering ZMQ messages
                 client.stop_channels()
         return kernel_id
