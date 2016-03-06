@@ -1,18 +1,27 @@
-sudo: false
 language: python
+
 python:
-    - 2.7
-    - 3.3
-    - 3.4
-    - 3.5
+    - "3.5.1"
+    - "3.4.3"
+    - "3.3.6"
+    - "2.7.11"
+
+sudo: false
+
 before_install:
+    - pip install --upgrade pip
+    - pip install --upgrade setuptools wheel nose coverage codecov   
     - git clone --quiet --depth 1 https://github.com/minrk/travis-wheels travis-wheels
+
 install:
     - python setup.py bdist_wheel sdist
     - pip install -f travis-wheels/wheelhouse dist/*.whl
-    - rm -rf travis-wheels
-    - pip freeze
+    - pip install --upgrade jupyter-client
+    - pip install --upgrade jupyter
+    - pip install --upgrade notebook
+    - pip install --upgrade ipykernel
+    
 script:
     - jupyter kernelgateway --help
-    - nosetests -x --process-restartworker
-    - pip uninstall -y jupyter_kernel_gateway
+    - nosetests -d --verbosity=3 --process-restartworker
+    

@@ -3,7 +3,7 @@
 
 import json
 import re
-from tornado.httputil import parse_body_arguments
+#from tornado.httputil import parse_body_arguments
 
 _named_param_regex = re.compile('(:([^/\s]*))')
 FORM_URLENCODED = 'application/x-www-form-urlencoded'

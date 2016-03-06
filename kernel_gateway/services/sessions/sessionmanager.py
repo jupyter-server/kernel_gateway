@@ -12,6 +12,7 @@ from ipython_genutils.py3compat import unicode_type
 
 class SessionManager(LoggingConfigurable):
     def __init__(self, kernel_manager, *args, **kwargs):
+        super(SessionManager, self).__init__(**kwargs)
         self.kernel_manager = kernel_manager
         self._sessions = []
         self._columns = ['session_id', 'path', 'kernel_id']

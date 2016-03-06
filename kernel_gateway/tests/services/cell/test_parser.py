@@ -4,13 +4,16 @@
 from kernel_gateway.services.cell.parser import *
 import unittest
 import re
+import sys
+
+
 class TestAPICellParserUtils(unittest.TestCase):
     def _test_parser_with_kernel_spec(self, kernel_spec, expected_comment):
         parser = APICellParser(kernel_spec)
         self.assertEqual(
             parser.kernelspec_api_indicator,
             re.compile(parser.api_indicator.format(expected_comment)),
-            'Exepected regular expression to start with {} for kernel spec {}'.format(
+            'Expected regular expression to start with {} for kernel spec {}'.format(
                 expected_comment,
                 kernel_spec
             )
@@ -66,7 +69,7 @@ class TestAPICellParserUtils(unittest.TestCase):
             endpoint, _ = endpoints[index]
             self.assertEqual(expected_values[index], endpoint, 'Endpoint was not found in expected order')
 
-    def test_endpoints_are_sorted_default_strategy(self):
+    def test_endpoints_are_sorted_custom_strategy(self):
         '''Tests if the parser correctly creates a list of endpoint, source tuples using a custom sort strategy'''
         source_cells = [
             '# POST /1',
@@ -74,14 +77,15 @@ class TestAPICellParserUtils(unittest.TestCase):
             '# GET /a'
         ]
 
-        def custom_sort_fun(endpoint):
-            index = sys.maxsize
-            if endpoint.find('1') >= 0:
+        def custom_sort_fun(newendpoint):
+            newindex = sys.maxsize
+            if newendpoint.find('1') >= 0:
                 return 0
-            elif endpoint.find('a') >= 0:
+            elif newendpoint.find('a') >= 0:
                 return 1
             else:
                 return 2
+
 
         parser = APICellParser('some_unknown_kernel')
         endpoints = parser.endpoints(source_cells, custom_sort_fun)

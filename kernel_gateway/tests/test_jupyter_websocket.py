@@ -328,7 +328,7 @@ class TestDefaults(TestJupyterWebsocket):
         for _ in range(3):
             msg = yield ws.read_message()
             msg = json_decode(msg)
-            if(msg['msg_type'] == 'kernel_info_reply'):
+            if msg['msg_type'] == 'kernel_info_reply':
                 break
         else:
             self.assert_(False, 'never received kernel_info_reply')
@@ -594,9 +594,12 @@ class TestKernelLanguageSupport(TestJupyterWebsocket):
         self.app.seed_uri = os.path.join(RESOURCES,
             'zen{}.ipynb'.format(sys.version_info.major))
 
+    # TODO
     @coroutine
-    def spawn_kernel(self):
-        '''Explicitly set the Python kernel version number when spawning.'''
+    def spawn_kernel(self, **kwargs):
+        '''Explicitly set the Python kernel version number when spawning.
+        :param **kwargs:
+        '''
         kernel_body = json.dumps({"name":"python{}".format(sys.version_info.major)})
         ws = yield super(TestKernelLanguageSupport, self).spawn_kernel(kernel_body)
         raise Return(ws)
