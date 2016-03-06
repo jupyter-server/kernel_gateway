@@ -19,6 +19,7 @@ install:
     - pip install --upgrade jupyter-client
     - pip install --upgrade jupyter
     - pip install --upgrade notebook
+    - pip install --upgrade ipykernel
     
 script:
     - jupyter kernelgateway --help
