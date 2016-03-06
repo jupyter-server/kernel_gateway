@@ -64,7 +64,7 @@ class SeedingMappingKernelManager(MappingKernelManager):
                 client = kernel.client()
                 if self.parent.api == 'notebook-http':
                     client.start_channels()
-                    client.wait_for_ready()
+                    # client.wait_for_ready()
                 for code in self.seed_source:
                     # Execute every code cell and wait for each to succeed or fail
                     api_cell_parser = APICellParser(self.seed_kernelspec)
