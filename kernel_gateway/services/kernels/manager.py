@@ -102,3 +102,52 @@ class KernelGatewayIOLoopKernelManager(IOLoopKernelManager):
     def _launch_kernel(self, kernel_cmd, **kw):
         kw['env']['KERNEL_GATEWAY'] = '1'
         return super(KernelGatewayIOLoopKernelManager, self)._launch_kernel(kernel_cmd, **kw)
+
+    def is_alive(self):
+        """Is the kernel process still running?"""
+        if self.has_kernel:
+            if self.kernel.poll() is None:
+                self.has_kernel_started = True
+                return True
+            else:
+                return False
+        else:
+            # we don't have a kernel
+            return False
+
+    def start_kernel(self, **kw):
+        self.has_kernel_started = False
+        super(KernelGatewayIOLoopKernelManager, self).start_kernel(**kw)
+
+    def restart_kernel(self, now=False, **kw):
+        """Restarts a kernel with the arguments that were used to launch it.
+        If the old kernel was launched and started with random ports,
+        the same ports will be used for the new kernel. The same connection
+        file is used again.  If the kernel fails to start the first time
+        though a new connection file will be used for the new kernel.
+        Parameters
+        ----------
+        now : bool, optional
+            If True, the kernel is forcefully restarted *immediately*, without
+            having a chance to do any cleanup action.  Otherwise the kernel is
+            given 1s to clean up before a forceful restart is issued.
+            In all cases the kernel is restarted, the only difference is whether
+            it is given a chance to perform a clean shutdown or not.
+        `**kw` : optional
+            Any options specified here will overwrite those used to launch the
+            kernel.
+        """
+        if self._launch_args is None:
+            raise RuntimeError("Cannot restart the kernel. "
+                               "No previous call to 'start_kernel'.")
+        else:
+            # Stop currently running kernel.
+            if self.has_kernel_started:
+                self.shutdown_kernel(now=now, restart=True)
+            else:
+                #wipe connection file as kernel has not started at all/for the first time
+                self.shutdown_kernel(now=now)
+
+            # Start new kernel.
+            self._launch_args.update(kw)
+            self.start_kernel(**self._launch_args)
