@@ -66,7 +66,7 @@ class SeedingMappingKernelManager(MappingKernelManager):
         """Starts a kernel and then executes a list of code cells on it if a
         seed notebook exists.
         """
-        kernel_id = super(MappingKernelManager, self).start_kernel(*args, **kwargs)
+        kernel_id = super(SeedingMappingKernelManager, self).start_kernel(*args, **kwargs)
 
         if kernel_id and self.seed_source is not None:
             # Only run source if the kernel spec matches the notebook kernel spec
