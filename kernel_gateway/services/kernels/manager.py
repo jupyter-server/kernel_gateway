@@ -62,21 +62,30 @@ class SeedingMappingKernelManager(MappingKernelManager):
         """
         self.start_kernel(kernel_name=self.seed_kernelspec, *args, **kwargs)
 
-    def start_kernel(self, *args, **kwargs):
+    def start_kernel(self, restart_limit=3, *args, **kwargs):
         """Starts a kernel and then executes a list of code cells on it if a
         seed notebook exists.
         """
         kernel_id = super(MappingKernelManager, self).start_kernel(*args, **kwargs)
 
-        if kernel_id and self.seed_source is not None:
-            # Only run source if the kernel spec matches the notebook kernel spec
+        if kernel_id:
             kernel = self.get_kernel(kernel_id)
-            if kernel.kernel_name == self.seed_kernelspec:
-                # Create a client to talk to the kernel
-                client = kernel.client()
-                # Only start channels and wait for ready in HTTP mode
-                client.start_channels()
+            # Create a client to talk to the kernel
+            client = kernel.client()
+            # Only start channels and wait for ready in HTTP mode
+            client.start_channels()
+            try:
                 client.wait_for_ready()
+            except RuntimeError:
+                #shutdown kernel and clear connection file
+                self.shutdown_kernel(kernel_id)
+                #ensure that on recursive calls it will successfully start
+                print("restart limit is {}".format(restart_limit))
+                if restart_limit < 0:
+                    raise RuntimeError('Kernel restart limit reached')
+                return self.start_kernel(restart_limit-1, *args, **kwargs)
+            # Only run source if the kernel spec matches the notebook kernel spec
+            if kernel.kernel_name == self.seed_kernelspec and self.seed_source is not None:
                 for code in self.seed_source:
                     # Execute every non-API code cell and wait for each to
                     # succeed or fail
@@ -90,8 +99,8 @@ class SeedingMappingKernelManager(MappingKernelManager):
                             # Shutdown the kernel
                             self.shutdown_kernel(kernel_id)
                             raise RuntimeError('Error seeding kernel memory')
-                # Shutdown the channels to remove any lingering ZMQ messages
-                client.stop_channels()
+            # Shutdown the channels to remove any lingering ZMQ messages
+            client.stop_channels()
         return kernel_id
 
 class KernelGatewayIOLoopKernelManager(IOLoopKernelManager):

@@ -6,7 +6,7 @@ python:
     - 3.4
     - 3.5
 env:
-    - ASYNC_TEST_TIMEOUT=10
+    - ASYNC_TEST_TIMEOUT=60
 before_install:
     - git clone --quiet --depth 1 https://github.com/minrk/travis-wheels travis-wheels
 install:
