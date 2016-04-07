@@ -2,6 +2,8 @@
 # Distributed under the terms of the Modified BSD License.
 
 import os
+import socket
+import errno
 import logging
 import nbformat
 
@@ -24,6 +26,7 @@ from tornado import httpserver
 from tornado import web
 from tornado.log import enable_pretty_logging
 
+from notebook.notebookapp import random_ports
 from .services.kernels.handlers import default_handlers as default_kernel_handlers
 from .services.kernelspecs.handlers import default_handlers as default_kernelspec_handlers
 from .services.sessions.handlers import default_handlers as default_session_handlers
@@ -53,6 +56,13 @@ class KernelGatewayApp(JupyterApp):
     )
     def _port_default(self):
         return int(os.getenv(self.port_env, 8888))
+    
+    port_retries_env = 'KG_PORT_RETRIES'
+    port_retries = Integer(config=True,
+        help="Number of ports to try if the specified port is not available (KG_PORT_RETRIES env var)"
+    )
+    def _port_retries_default(self):
+        return int(os.getenv(self.port_retries_env, 50))
 
     ip_env = 'KG_IP'
     ip = Unicode(config=True,
@@ -353,7 +363,26 @@ class KernelGatewayApp(JupyterApp):
         Initialize a HTTP server.
         '''
         self.http_server = httpserver.HTTPServer(self.web_app)
-        self.http_server.listen(self.port, self.ip)
+        
+        for port in random_ports(self.port, self.port_retries+1):
+            try:
+                self.http_server.listen(port, self.ip)
+            except socket.error as e:
+                if e.errno == errno.EADDRINUSE:
+                    self.log.info('The port %i is already in use, trying another port.' % port)
+                    continue
+                elif e.errno in (errno.EACCES, getattr(errno, 'WSAEACCES', errno.EACCES)):
+                    self.log.warning("Permission to listen on port %i denied" % port)
+                    continue
+                else:
+                    raise
+            else:
+                self.port = port
+                break
+        else:
+            self.log.critical('ERROR: the notebook server could not be started because '
+                              'no available port could be found.')
+            self.exit(1)
 
     def start(self):
         '''
