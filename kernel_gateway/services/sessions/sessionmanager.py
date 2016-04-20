@@ -24,7 +24,7 @@ class SessionManager(LoggingConfigurable):
         """Create a uuid for a new session"""
         return unicode_type(uuid.uuid4())
 
-    def create_session(self, path=None, kernel_name=None):
+    def create_session(self, path=None, kernel_name=None, kernel_id=None):
         """Creates a session and returns its model"""
         session_id = self.new_session_id()
         # allow nbm to specify kernels cwd
