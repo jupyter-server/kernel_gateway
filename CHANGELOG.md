@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1 (2016-04-20)
+
+* Backport `--KernelGateway.port_retries` option like in Jupyter Notebook
+* Fix compatibility with Notebook 4.2 session handler `create_session` call
+
 ## 0.4.0 (2016-02-17)
 
 * Enable `/_api/activity` resource with stats about kernels in `jupyter-websocket` mode
