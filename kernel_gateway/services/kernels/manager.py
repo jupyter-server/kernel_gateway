@@ -5,7 +5,6 @@
 from tornado import gen
 from notebook.services.kernels.kernelmanager import MappingKernelManager
 from jupyter_client.ioloop import IOLoopKernelManager
-from ..cell.parser import APICellParser
 
 class SeedingMappingKernelManager(MappingKernelManager):
     """Extends the notebook kernel manager to optionally execute the contents
@@ -80,10 +79,7 @@ class SeedingMappingKernelManager(MappingKernelManager):
                 client.start_channels()
                 client.wait_for_ready()
                 for code in self.seed_source:
-                    # Execute every non-API code cell and wait for each to
-                    # succeed or fail
-                    api_cell_parser = APICellParser(self.seed_kernelspec)
-                    if not api_cell_parser.is_api_cell(code) and not api_cell_parser.is_api_response_cell(code):
+                    if self.parent.personality.should_seed_cell(self.seed_kernelspec, code):
                         client.execute(code)
                         msg = client.shell_channel.get_msg(block=True)
                         if msg['content']['status'] != 'ok':
@@ -91,7 +87,7 @@ class SeedingMappingKernelManager(MappingKernelManager):
                             client.stop_channels()
                             # Shutdown the kernel
                             self.shutdown_kernel(kernel_id)
-                            raise RuntimeError('Error seeding kernel memory')
+                            raise RuntimeError('Error seeding kernel memory', msg['content'])
                 # Shutdown the channels to remove any lingering ZMQ messages
                 client.stop_channels()
         raise gen.Return(kernel_id)

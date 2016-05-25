@@ -38,8 +38,10 @@ docs: ## Build the sphinx documentation in a container
 etc/api_examples/%: ## Start one of the notebook-http mode API examples on port 8888 in a docker container
 	$(DOCKER) -p 8888:8888 $(IMAGE) \
 		python $(PYARGS) kernel_gateway --KernelGatewayApp.ip='0.0.0.0' \
-			--KernelGatewayApp.api='notebook-http' \
+			--KernelGatewayApp.api='kernel_gateway.notebook_http' \
 			--KernelGatewayApp.seed_uri=/srv/kernel_gateway/$@.ipynb $(ARGS)
+
+build: image
 
 image: ## Build the dev/test docker image
 	@docker build --rm -f Dockerfile.dev -t $(IMAGE) .
@@ -62,7 +64,7 @@ sdist: ## Build a dist/*.tar.gz source distribution
 
 test: test-python3 ## Run tests on Python 3 in a docker container
 
-test-python2: PRE_CMD:=source activate python2; pip install requests;
+test-python2: PRE_CMD:=source activate python2; pip install requests nose;
 test-python2: _test ## Run tests on Python 2 in a docker container
 
 test-python3: _test
