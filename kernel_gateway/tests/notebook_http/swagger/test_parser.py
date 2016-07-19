@@ -5,61 +5,26 @@
 import unittest
 import re
 import sys
+from kernel_gateway.notebook_http.swagger.parser import SwaggerCellParser
 from kernel_gateway.notebook_http.cell.parser import APICellParser
 
-class TestAPICellParser(unittest.TestCase):
+class TestSwaggerAPICellParser(unittest.TestCase):
     """Unit tests the APICellParser class."""
-    def _test_parser_with_kernel_spec(self, kernel_spec, expected_comment):
-        """Instantiates the parser using the given `kernel_spec` and asserts
-        whether it created the correct regular expression for the kernel
-        language comment syntax.
-
-        Parameters
-        ----------
-        kernel_spec : str
-            Kernel spec name
-        expected_comment : str
-            Comment token in the kernel spec language
-
-        Raises
-        ------
-        AssertionError
-            If the parser did not create the correct regex
-        """
-        parser = APICellParser(kernelspec=kernel_spec)
-        self.assertEqual(
-            parser.kernelspec_api_indicator,
-            re.compile(parser.api_indicator.format(expected_comment)),
-            'Exepected regular expression to start with {} for kernel spec {}'.format(
-                expected_comment,
-                kernel_spec
-            )
-        )
-
-    def test_init(self):
-        """Parser should pick the correct comment syntax."""
-        self._test_parser_with_kernel_spec('some_unknown_kernel', '#')
-        self._test_parser_with_kernel_spec('scala', '//')
-        self._test_parser_with_kernel_spec('python2', '#')
-        self._test_parser_with_kernel_spec('python3', '#')
-        self._test_parser_with_kernel_spec('ir', '#')
-        self._test_parser_with_kernel_spec('julia-0.3', '#')
-
     def test_is_api_cell(self):
         """Parser should correctly identify annotated API cells."""
-        parser = APICellParser(kernelspec='some_unknown_kernel')
-        self.assertTrue(parser.is_api_cell('# GET /yes'), 'API cell was not detected')
+        parser = SwaggerCellParser(kernelspec='some_unknown_kernel')
+        self.assertTrue(parser.is_api_cell('{"swagger":"2.0", "paths": {"/yes": {"get": {}}}}'), 'API cell was not detected')
         self.assertFalse(parser.is_api_cell('no'), 'API cell was not detected')
 
     def test_endpoint_sort_default_strategy(self):
         """Parser should sort duplicate endpoint paths."""
         source_cells = [
-            '# POST /:foo',
-            '# POST /hello/:foo',
-            '# GET /hello/:foo',
-            '# PUT /hello/world'
+            '{"swagger":"2.0", "paths": {"": {"post": {"parameters": [{"name": "foo"}]}}}}',
+            '{"swagger":"2.0", "paths": {"/hello": {"post": {"parameters": [{"name": "foo"}]}}}}',
+            '{"swagger":"2.0", "paths": {"/hello": {"get": {"parameters": [{"name": "foo"}]}}}}',
+            '{"swagger":"2.0", "paths": {"/hello/world": {"put": {}}}}'
         ]
-        parser = APICellParser(kernelspec='some_unknown_kernel')
+        parser = SwaggerCellParser(kernelspec='some_unknown_kernel')
         endpoints = parser.endpoints(source_cells)
         expected_values = ['/hello/world', '/hello/:foo', '/:foo']
 
@@ -72,9 +37,9 @@ class TestAPICellParser(unittest.TestCase):
         strategy.
         """
         source_cells = [
-            '# POST /1',
-            '# POST /+',
-            '# GET /a'
+            '{"swagger":"2.0", "paths": {"/1": {"post": {}}}}',
+            '{"swagger":"2.0", "paths": {"/+": {"post": {}}}}',
+            '{"swagger":"2.0", "paths": {"/a": {"get": {}}}}'
         ]
 
         def custom_sort_fun(endpoint):
@@ -86,7 +51,7 @@ class TestAPICellParser(unittest.TestCase):
             else:
                 return 2
 
-        parser = APICellParser(kernelspec='some_unknown_kernel')
+        parser = SwaggerCellParser(kernelspec='some_unknown_kernel')
         endpoints = parser.endpoints(source_cells, custom_sort_fun)
         expected_values = ['/+', '/a', '/1']
 
@@ -94,15 +59,16 @@ class TestAPICellParser(unittest.TestCase):
             endpoint, _ = endpoints[index]
             self.assertEqual(expected_values[index], endpoint, 'Endpoint was not found in expected order')
 
+
     def test_get_cell_endpoint_and_verb(self):
         """Parser should extract API endpoint and verb from cell annotations."""
-        parser = APICellParser(kernelspec='some_unknown_kernel')
-        endpoint, verb = parser.get_cell_endpoint_and_verb('# GET /foo')
+        parser = SwaggerCellParser(kernelspec='some_unknown_kernel')
+        endpoint, verb = parser.get_cell_endpoint_and_verb('{"swagger":"2.0", "paths": {"/foo": {"get": {}}}}')
         self.assertEqual(endpoint, '/foo', 'Endpoint was not extracted correctly')
-        self.assertEqual(verb, 'GET', 'Endpoint was not extracted correctly')
-        endpoint, verb = parser.get_cell_endpoint_and_verb('# POST /bar/quo')
+        self.assertEqual(verb.lower(), 'get', 'Endpoint was not extracted correctly')
+        endpoint, verb = parser.get_cell_endpoint_and_verb('{"swagger":"2.0", "paths": {"/bar/quo": {"post": {}}}}')
         self.assertEqual(endpoint, '/bar/quo', 'Endpoint was not extracted correctly')
-        self.assertEqual(verb, 'POST', 'Endpoint was not extracted correctly')
+        self.assertEqual(verb.lower(), 'post', 'Endpoint was not extracted correctly')
 
         endpoint, verb = parser.get_cell_endpoint_and_verb('some regular code')
         self.assertEqual(endpoint, None, 'Endpoint was not extracted correctly')
@@ -111,22 +77,22 @@ class TestAPICellParser(unittest.TestCase):
     def test_endpoint_concatenation(self):
         """Parser should concatenate multiple cells with the same verb+path."""
         source_cells = [
-            '# POST /foo/:bar',
-            '# POST /foo/:bar',
-            '# POST /foo',
+            '{"swagger":"2.0", "paths": {"/foo": {"post": {"parameters": [{"name": "bar"}]}}}}',
+            '{"swagger":"2.0", "paths": {"/foo": {"post": {"parameters": [{"name": "bar"}]}}}}',
+            '{"swagger":"2.0", "paths": {"/foo": {"post": {}}}}',
             'ignored',
-            '# GET /foo/:bar'
+            '{"swagger":"2.0", "paths": {"/foo": {"get": {"parameters": [{"name": "bar"}]}}}}'
         ]
-        parser = APICellParser(kernelspec='some_unknown_kernel')
+        parser = SwaggerCellParser(kernelspec='some_unknown_kernel')
         endpoints = parser.endpoints(source_cells)
         self.assertEqual(len(endpoints), 2)
         # for ease of testing
         endpoints = dict(endpoints)
         self.assertEqual(len(endpoints['/foo']), 1)
         self.assertEqual(len(endpoints['/foo/:bar']), 2)
-        self.assertEqual(endpoints['/foo']['POST'], '# POST /foo\n')
-        self.assertEqual(endpoints['/foo/:bar']['POST'], '# POST /foo/:bar\n# POST /foo/:bar\n')
-        self.assertEqual(endpoints['/foo/:bar']['GET'], '# GET /foo/:bar\n')
+        self.assertEqual(endpoints['/foo']['post'], '{"swagger":"2.0", "paths": {"/foo": {"post": {}}}}\n')
+        self.assertEqual(endpoints['/foo/:bar']['post'], '{"swagger":"2.0", "paths": {"/foo": {"post": {"parameters": [{"name": "bar"}]}}}}\n{"swagger":"2.0", "paths": {"/foo": {"post": {"parameters": [{"name": "bar"}]}}}}\n')
+        self.assertEqual(endpoints['/foo/:bar']['get'], '{"swagger":"2.0", "paths": {"/foo": {"get": {"parameters": [{"name": "bar"}]}}}}\n')
 
     def test_endpoint_response_concatenation(self):
         """Parser should concatenate multiple response cells with the same
@@ -139,7 +105,7 @@ class TestAPICellParser(unittest.TestCase):
             'ignored',
             '# ResponseInfo GET /foo/:bar'
         ]
-        parser = APICellParser(kernelspec='some_unknown_kernel')
+        parser = SwaggerCellParser(kernelspec='some_unknown_kernel')
         endpoints = parser.endpoint_responses(source_cells)
         self.assertEqual(len(endpoints), 2)
         # for ease of testing
