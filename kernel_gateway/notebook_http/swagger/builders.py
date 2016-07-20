@@ -3,8 +3,6 @@
 """Class for building a Swagger spec from a notebook-defined API."""
 
 import os
-from ..cell.parser import APICellParser
-
 
 class SwaggerSpecBuilder(object):
     """Builds a Swagger specification.
@@ -21,8 +19,8 @@ class SwaggerSpecBuilder(object):
     value : dict
         Python object representation of the Swagger spec
     """
-    def __init__(self, kernel_spec):
-        self.cell_parser = APICellParser(kernel_spec)
+    def __init__(self, cell_parser):
+        self.cell_parser = cell_parser
         self.value = { 'swagger' : '2.0', 'paths' : {}, 'info' : {'version' : '0.0.0', 'title' : 'Default Title'} }
 
     def add_cell(self, cell_source):
@@ -37,11 +35,7 @@ class SwaggerSpecBuilder(object):
         """
         if self.cell_parser.is_api_cell(cell_source):
             path_name, verb = self.cell_parser.get_cell_endpoint_and_verb(cell_source)
-            path_value = {
-                'responses' : {
-                    200 : { 'description': 'Success'}
-                }
-            }
+            path_value = self.cell_parser.get_path_content(cell_source)
             if not path_name in self.value['paths']:
                 self.value['paths'][path_name] = {}
             self.value['paths'][path_name][verb.lower()] = path_value

@@ -3,13 +3,14 @@
 """Notebook HTTP personality for the Kernel Gateway"""
 
 import os
+import importlib
 from ..base.handlers import default_handlers as default_base_handlers
 from ..services.kernels.pool import ManagedKernelPool
 from .cell.parser import APICellParser
 from .swagger.handlers import SwaggerSpecHandler
 from .handlers import NotebookAPIHandler, parameterize_path, NotebookDownloadHandler
 from notebook.utils import url_path_join
-from traitlets import Bool, default
+from traitlets import Bool, Unicode, default
 from traitlets.config.configurable import LoggingConfigurable
 
 class NotebookHTTPPersonality(LoggingConfigurable):
@@ -18,7 +19,26 @@ class NotebookHTTPPersonality(LoggingConfigurable):
     """
     def __init__(self, *args, **kwargs):
         super(NotebookHTTPPersonality, self).__init__(*args, **kwargs)
-        self.api_parser = APICellParser(self.parent.kernel_manager.seed_kernelspec)
+        cell_parser_module = self._load_module(self.cell_parser)
+        func = getattr(cell_parser_module, 'create_parser')
+        self.api_parser = func(parent=self, log=self.log, kernelspec=self.parent.kernel_manager.seed_kernelspec, notebook_cells=self.parent.seed_notebook.cells)
+
+    cell_parser_env = 'KG_CELL_PARSER'
+    cell_parser = Unicode('kernel_gateway.notebook_http.cell.parser',
+        config=True,
+        help=""" Determines which module is used to parse the notebook for endpoints and
+            documentation. Valid module names include 'kernel_gateway.notebook_http.cell.parser'
+            and 'kernel_gateway.notebook_http.swagger.parser'. (KG_CELL_PARSER env var)
+            """
+    )
+    @default('cell_parser')
+    def cell_parser_default(self):
+        return os.getenv(self.cell_parser_env, 'kernel_gateway.notebook_http.cell.parser')
+
+    def _load_module(self, module_name):
+        '''Tries to import the given module name'''
+        _module = importlib.import_module(module_name)
+        return _module
 
     allow_notebook_download_env = 'KG_ALLOW_NOTEBOOK_DOWNLOAD'
     allow_notebook_download = Bool(
@@ -72,12 +92,15 @@ class NotebookHTTPPersonality(LoggingConfigurable):
             handlers.append((parameterized_path, NotebookAPIHandler, handler_args))
 
         # Register the swagger API spec handler
+        self.log.info('Registering endpoint_path: {}'.format(
+            r'/_api/spec/swagger.json')
+        )
         handlers.append(
             (url_path_join('/', self.parent.base_url, r'/_api/spec/swagger.json'),
             SwaggerSpecHandler, {
                 'notebook_path' : self.parent.seed_uri,
-                'source_cells': self.parent.kernel_manager.seed_source,
-                'kernel_spec' : self.parent.kernel_manager.seed_kernelspec
+                'source_cells': self.parent.seed_notebook.cells,
+                'cell_parser' : self.api_parser
         }))
 
         # Add the 404 catch-all last
