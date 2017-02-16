@@ -2,6 +2,11 @@
 # Distributed under the terms of the Modified BSD License.
 
 FROM jupyter/pyspark-notebook:8015c88c4b11
+
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends enchant
+USER $NB_USER
+
 RUN conda install -y nose && \
     conda install -y -n python2 nose
 
