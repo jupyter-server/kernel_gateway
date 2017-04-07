@@ -131,6 +131,14 @@
         },
         "/api/kernels": {
             "get": {
+                "security": [
+                    {
+                        "tokenHeader": []
+                    },
+                    {
+                        "tokenParam": []
+                    }
+                ],
                 "summary": "List the JSON data for all currently running kernels",
                 "tags": [
                     "kernels"
@@ -154,6 +162,14 @@
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "tokenHeader": []
+                    },
+                    {
+                        "tokenParam": []
+                    }
+                ],
                 "summary": "Start a kernel and return the uuid",
                 "tags": [
                     "kernels"
@@ -203,6 +219,14 @@
                 }
             ],
             "get": {
+                "security": [
+                    {
+                        "tokenHeader": []
+                    },
+                    {
+                        "tokenParam": []
+                    }
+                ],
                 "summary": "Get kernel information",
                 "tags": [
                     "kernels"
@@ -217,6 +241,14 @@
                 }
             },
             "delete": {
+                "security": [
+                    {
+                        "tokenHeader": []
+                    },
+                    {
+                        "tokenParam": []
+                    }
+                ],
                 "summary": "Kill a kernel and delete the kernel id",
                 "tags": [
                     "kernels"
@@ -235,6 +267,14 @@
                 }
             ],
             "get": {
+                "security": [
+                    {
+                        "tokenHeader": []
+                    },
+                    {
+                        "tokenParam": []
+                    }
+                ],
                 "summary": "Upgrades the connection to a websocket connection.",
                 "tags": [
                     "channels"
@@ -253,6 +293,14 @@
                 }
             ],
             "post": {
+                "security": [
+                    {
+                        "tokenHeader": []
+                    },
+                    {
+                        "tokenParam": []
+                    }
+                ],
                 "summary": "Interrupt a kernel",
                 "tags": [
                     "kernels"
@@ -271,6 +319,14 @@
                 }
             ],
             "post": {
+                "security": [
+                    {
+                        "tokenHeader": []
+                    },
+                    {
+                        "tokenParam": []
+                    }
+                ],
                 "summary": "Restart a kernel",
                 "tags": [
                     "kernels"
@@ -294,6 +350,14 @@
         },
         "/api/sessions": {
             "get": {
+                "security": [
+                    {
+                        "tokenHeader": []
+                    },
+                    {
+                        "tokenParam": []
+                    }
+                ],
                 "summary": "List available sessions",
                 "tags": [
                     "sessions"
@@ -317,6 +381,14 @@
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "tokenHeader": []
+                    },
+                    {
+                        "tokenParam": []
+                    }
+                ],
                 "summary": "Create a new session, or return an existing session if a session for the notebook path already exists",
                 "tags": [
                     "sessions"
@@ -383,6 +455,14 @@
                 }
             ],
             "get": {
+                "security": [
+                    {
+                        "tokenHeader": []
+                    },
+                    {
+                        "tokenParam": []
+                    }
+                ],
                 "summary": "Get session",
                 "tags": [
                     "sessions"
@@ -397,6 +477,14 @@
                 }
             },
             "patch": {
+                "security": [
+                    {
+                        "tokenHeader": []
+                    },
+                    {
+                        "tokenParam": []
+                    }
+                ],
                 "summary": "This can be used to rename the notebook, or move it to a new directory.",
                 "tags": [
                     "sessions"
@@ -439,6 +527,14 @@
                 }
             },
             "delete": {
+                "security": [
+                    {
+                        "tokenHeader": []
+                    },
+                    {
+                        "tokenParam": []
+                    }
+                ],
                 "summary": "Delete a session",
                 "tags": [
                     "sessions"
@@ -455,6 +551,14 @@
         },
         "/_api/activity": {
             "get": {
+                "security": [
+                    {
+                        "tokenHeader": []
+                    },
+                    {
+                        "tokenParam": []
+                    }
+                ],
                 "summary": "Gets activity information for all of the kernels.",
                 "tags": [
                     "activity"
