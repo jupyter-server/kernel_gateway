@@ -8,6 +8,7 @@ import errno
 import logging
 import nbformat
 import importlib
+import signal
 
 try:
     from urlparse import urlparse
@@ -508,6 +509,8 @@ class KernelGatewayApp(JupyterApp):
 
         self.io_loop = ioloop.IOLoop.current()
 
+        signal.signal(signal.SIGTERM, self._signal_stop)
+
         try:
             self.io_loop.start()
         except KeyboardInterrupt:
@@ -528,5 +531,8 @@ class KernelGatewayApp(JupyterApp):
         """Stop all kernels in the pool."""
         self.personality.shutdown()
 
+    def _signal_stop(self, sig, frame):
+        self.log.info("Received signal to terminate.")
+        self.io_loop.stop()
 
 launch_instance = KernelGatewayApp.launch_instance
