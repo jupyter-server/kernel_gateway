@@ -274,6 +274,21 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertEqual(response.headers.get('Content-Security-Policy'), None)
 
     @gen_test
+    def test_cors_options_headers(self):
+        """All preflight OPTIONS requests should return configured headers."""
+        app = self.get_app()
+        app.settings['kg_allow_headers'] = 'X-XSRFToken'
+        app.settings['kg_allow_methods'] = 'GET,POST,OPTIONS'
+
+        response = yield self.http_client.fetch(
+            self.get_url('/api/kernelspecs'),
+            method='OPTIONS'
+        )
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response.headers['Access-Control-Allow-Methods'], 'GET,POST,OPTIONS')
+        self.assertEqual(response.headers['Access-Control-Allow-Headers'], 'X-XSRFToken')
+
+    @gen_test
     def test_max_kernels(self):
         """Number of kernels should be limited."""
         app = self.get_app()
