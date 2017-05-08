@@ -35,6 +35,14 @@ class CORSMixin(object):
         # Don't set CSP: we're not serving frontend media types only JSON
         self.clear_header('Content-Security-Policy')
 
+    def options(self):
+        """Override the notebook implementation to return the headers
+        configured in `set_default_headers instead of the hardcoded set
+        supported by the handler base class in the notebook project.
+        """
+        self.finish()
+
+
 class TokenAuthorizationMixin(object):
     """Mixes token auth into tornado.web.RequestHandlers and
     tornado.websocket.WebsocketHandlers.
@@ -68,6 +76,7 @@ class TokenAuthorizationMixin(object):
             if client_token != server_token:
                 return self.send_error(401)
         return super(TokenAuthorizationMixin, self).prepare()
+
 
 class JSONErrorsMixin(object):
     """Mixes `write_error` into tornado.web.RequestHandlers to respond with
