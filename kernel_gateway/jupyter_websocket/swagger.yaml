@@ -6,7 +6,7 @@ info:
   version: "5"
   contact:
     name: Jupyter Project
-    url: jupyter.org
+    url: https://jupyter.org
 
 produces:
   - application/json
@@ -45,6 +45,10 @@ securityDefinitions:
       needed when `KernelGatewayApp.auth_token` is set. This should take the form
       of `token={value}` where `{value}` is the value of the token.
       Alternatively, the token can be passed as a header.
+
+security:
+  - tokenHeader: []
+  - tokenParam: []
 
 paths:
   /api:
@@ -410,4 +414,3 @@ definitions:
     properties:
       version:
         type: string
-
