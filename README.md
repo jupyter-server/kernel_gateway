@@ -8,14 +8,23 @@
 
 ## Overview
 
-The kernel gateway is a web server that supports different mechanisms for spawning and
-communicating with Jupyter kernels, such as:
+Jupyter Kernel Gateway is a web server that provides headless access to
+Jupyter kernels. Your application communicates with the kernels remotely,
+through REST calls and Websockets rather than ZeroMQ messages.
+There are no provisions for editing notebooks through the Kernel Gateway.
+The following operation modes, called personalities, are supported
+out of the box:
 
-* A Jupyter Notebook server-compatible HTTP API used for requesting kernels
-  and talking the [Jupyter kernel protocol](https://jupyter-client.readthedocs.io/en/latest/messaging.html)
-  with the kernels over Websockets
-* A HTTP API defined by annotated notebook cells that maps HTTP verbs and
-  resources to code to execute on a kernel
+* Send code snippets for execution using the
+  [Jupyter kernel protocol](https://jupyter-client.readthedocs.io/en/latest/messaging.html)
+  over Websockets. Start and stop kernels through REST calls.
+  This HTTP API is compatible with the respective API sections
+  of the Jupyter Notebook server.
+
+* Serve HTTP requests from annotated notebook cells. The code snippets
+  are cells of a static notebook configured in the Kernel Gateway.
+  Annotations define which HTTP verbs and resources it supports.
+  Incoming requests are served by executing one of the cells in a kernel.
 
 The server launches kernels in its local process/filesystem space. It can be containerized and scaled out using common technologies like [tmpnb](https://github.com/jupyter/tmpnb), [Cloud Foundry](https://github.com/cloudfoundry), and [Kubernetes](http://kubernetes.io/).
 
