@@ -26,7 +26,9 @@ out of the box:
   Annotations define which HTTP verbs and resources it supports.
   Incoming requests are served by executing one of the cells in a kernel.
 
-The server launches kernels in its local process/filesystem space. It can be containerized and scaled out using common technologies like [tmpnb](https://github.com/jupyter/tmpnb), [Cloud Foundry](https://github.com/cloudfoundry), and [Kubernetes](http://kubernetes.io/).
+Jupyter Kernel Gateway uses the same code as Jupyter Notebook
+to launch kernels in its local process/filesystem space.
+It can be containerized and scaled out using common technologies like [tmpnb](https://github.com/jupyter/tmpnb), [Cloud Foundry](https://github.com/cloudfoundry), and [Kubernetes](http://kubernetes.io/).
 
 ### Example Uses of Kernel Gateway
 
