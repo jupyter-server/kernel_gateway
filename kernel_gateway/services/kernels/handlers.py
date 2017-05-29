@@ -53,8 +53,9 @@ class MainKernelHandler(TokenAuthorizationMixin,
         if model is not None and 'env' in model:
             if not isinstance(model['env'], dict):
                 raise tornado.web.HTTPError(400)
-            # start with current env
-            env = dict(os.environ)
+            # Start with the PATH from the current env. Do not provide the entire environment
+            # which might contain server secrets that should not be passed to kernels.
+            env = {'PATH': os.getenv('PATH', '')}
             # Whitelist KERNEL_* args and those allowed by configuration
             env.update({key: value for key, value in model['env'].items()
                    if key.startswith('KERNEL_') or key in self.env_whitelist})
