@@ -2,6 +2,19 @@
 
 See `git log` for a more detailed summary of changes.
 
+## 2.0
+
+### 2.0.0 (2017-05-30)
+
+* Update compatibility to notebook>=5.0
+* Remove kernel activity API in favor of the one in the notebook package
+* Update project overview in the documentation
+* Inherit the server `PATH` when launching a new kernel via POST request
+  with custom environment variables
+* Fix kernel cleanup upon SIGTERM
+* Fix security requirements in the swagger spec
+* Fix configured headers for OPTIONS requests
+
 ## 1.2
 
 ### 1.2.1 (2017-04-01)
