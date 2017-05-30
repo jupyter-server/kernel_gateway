@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.2 (2017-05-30)
+
+* Inherit the server `PATH` when launching a new kernel via POST request
+  with custom environment variables
+* Fix kernel cleanup upon SIGTERM
+
 ## 1.2.1 (2017-04-01)
 
 * Add support for auth token as a query parameter
