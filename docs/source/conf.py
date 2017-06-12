@@ -369,7 +369,7 @@ epub_exclude_files = ['search.html']
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
+intersphinx_mapping = {'https://docs.python.org/3/': None}
 
 # Read The Docs
 # on_rtd is whether we are on readthedocs.org, this line of code grabbed from docs.readthedocs.org
