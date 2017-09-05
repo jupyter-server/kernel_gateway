@@ -3,7 +3,7 @@
 This document describes some of the basics of installing and running the
 Jupyter Kernel Gateway.
 
-#### Using pip
+### Using pip
 
 We make stable releases of the kernel gateway to PyPI. You can use `pip` to install the latest version along with its dependencies.
 
@@ -19,18 +19,19 @@ Once installed, you can use the `jupyter` CLI to run the server.
 jupyter kernelgateway
 ```
 
-#### Using jupyter/minimal-kernel
+### Using conda
 
-The [docker-stacks](https://github.com/jupyter/docker-stacks) project defines a [minimal-kernel](https://github.com/jupyter/docker-stacks/tree/master/minimal-kernel) Docker image. The Dockerfile for this image installs the kernel gateway and sets it as the default container command. You can run an instance of this container with the following commands:
+You can install the kernel gateway using conda as well.
 
 ```bash
-docker pull jupyter/minimal-kernel
-docker run -it --rm -p 8888:8888 jupyter/minimal-kernel
+conda install -c conda-forge jupyter_kernel_gateway
 ```
 
-#### Using another docker-stacks image
+Once installed, you can use the `jupyter` CLI to run the server as shown above.
 
-You can add the kernel gateway to any [docker-stacks](https://github.com/jupyter/docker-stacks) image to get a more feature-filled kernel environment. For example, you could define a Dockerfile like so:
+### Using a docker-stacks image
+
+You can add the kernel gateway to any [docker-stacks](https://github.com/jupyter/docker-stacks) image by writing a Dockerfile patterned after the following example:
 
 ```bash
 # start from the jupyter image with R, Python, and Scala (Apache Toree) kernels pre-installed

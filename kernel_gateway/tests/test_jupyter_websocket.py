@@ -11,11 +11,12 @@ from .test_gatewayapp import TestGatewayAppBase, RESOURCES
 from kernel_gateway.gatewayapp import KernelGatewayApp
 from jupyter_client.kernelspec import NoSuchKernel
 
-from tornado.gen import coroutine, Return
+from tornado.gen import coroutine, Return, sleep
 from tornado.websocket import websocket_connect
 from tornado.httpclient import HTTPRequest
 from tornado.testing import gen_test
 from tornado.escape import json_encode, json_decode, url_escape
+
 
 class TestJupyterWebsocket(TestGatewayAppBase):
     """Base class for jupyter-websocket mode tests that spawn kernels."""
@@ -51,6 +52,51 @@ class TestJupyterWebsocket(TestGatewayAppBase):
 
         ws = yield websocket_connect(ws_url)
         raise Return(ws)
+
+    def execute_request(self, code):
+        """Creates an execute_request message.
+
+        Parameters
+        ----------
+        code : str
+            Code to execute
+
+        Returns
+        -------
+        dict
+            The message
+        """
+        return {
+            'header': {
+                'username': '',
+                'version': '5.0',
+                'session': '',
+                'msg_id': 'fake-msg-id',
+                'msg_type': 'execute_request'
+            },
+            'parent_header': {},
+            'channel': 'shell',
+            'content': {
+                'code': code,
+                'silent': False,
+                'store_history': False,
+                'user_expressions' : {}
+            },
+            'metadata': {},
+            'buffers': {}
+        }
+
+    @coroutine
+    def await_stream(self, ws):
+        """Returns stream output associated with an execute_request."""
+        while 1:
+            msg = yield ws.read_message()
+            msg = json_decode(msg)
+            msg_type = msg['msg_type']
+            parent_msg_id = msg['parent_header']['msg_id']
+            if msg_type == 'stream' and parent_msg_id == 'fake-msg-id':
+                raise Return(msg['content'])
+
 
 class TestDefaults(TestJupyterWebsocket):
     """Tests gateway behavior."""
@@ -98,10 +144,10 @@ class TestDefaults(TestJupyterWebsocket):
 
     @gen_test
     def test_config_bad_api_value(self):
-        """Should raise a ValueError for unsupported API modes."""
+        """Should raise an ImportError for nonexistent API personality modules."""
         def _set_api():
             self.app.api = 'notebook-gopher'
-        self.assertRaises(ValueError, _set_api)
+        self.assertRaises(ImportError, _set_api)
 
     @gen_test
     def test_auth_token(self):
@@ -228,6 +274,21 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertEqual(response.headers.get('Content-Security-Policy'), None)
 
     @gen_test
+    def test_cors_options_headers(self):
+        """All preflight OPTIONS requests should return configured headers."""
+        app = self.get_app()
+        app.settings['kg_allow_headers'] = 'X-XSRFToken'
+        app.settings['kg_allow_methods'] = 'GET,POST,OPTIONS'
+
+        response = yield self.http_client.fetch(
+            self.get_url('/api/kernelspecs'),
+            method='OPTIONS'
+        )
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response.headers['Access-Control-Allow-Methods'], 'GET,POST,OPTIONS')
+        self.assertEqual(response.headers['Access-Control-Allow-Headers'], 'X-XSRFToken')
+
+    @gen_test
     def test_max_kernels(self):
         """Number of kernels should be limited."""
         app = self.get_app()
@@ -248,7 +309,7 @@ class TestDefaults(TestJupyterWebsocket):
             body='{}',
             raise_error=False
         )
-        self.assertEqual(response2.code, 402)
+        self.assertEqual(response2.code, 403)
 
         # Shut down the kernel
         kernel = json_decode(response.body)
@@ -362,12 +423,6 @@ class TestDefaults(TestJupyterWebsocket):
         )
         self.assertEqual(response.code, 403)
 
-        response = yield self.http_client.fetch(
-            self.get_url('/_api/activity'),
-            raise_error=False
-        )
-        self.assertEqual(response.code, 403)
-
     @gen_test
     def test_crud_sessions(self):
         """Server should create, list, and delete sessions."""
@@ -450,52 +505,28 @@ class TestDefaults(TestJupyterWebsocket):
     @gen_test
     def test_kernel_env(self):
         """Kernel should start with environment vars defined in the request."""
+        self.app.personality.env_whitelist = ['TEST_VAR']
         kernel_body = json.dumps({
             'name': 'python',
             'env': {
                 'KERNEL_FOO': 'kernel-foo-value',
                 'NOT_KERNEL': 'ignored',
-                'KERNEL_GATEWAY' : 'overridden'
+                'KERNEL_GATEWAY': 'overridden',
+                'TEST_VAR': 'allowed'
             }
         })
         ws = yield self.spawn_kernel(kernel_body)
-
-        ws.write_message(json_encode({
-            'header': {
-                'username': '',
-                'version': '5.0',
-                'session': '',
-                'msg_id': 'fake-msg-id',
-                'msg_type': 'execute_request'
-            },
-            'parent_header': {},
-            'channel': 'shell',
-            'content': {
-                'code': 'import os; print(os.getenv("KERNEL_FOO"), os.getenv("NOT_KERNEL"), os.getenv("KERNEL_GATEWAY"))',
-                'silent': False,
-                'store_history': False,
-                'user_expressions' : {}
-            },
-            'metadata': {},
-            'buffers': {}
-        }))
-
-        # Read messages until we see the output from the print or hit the
-        # test timeout
-        while 1:
-            msg = yield ws.read_message()
-            msg = json_decode(msg)
-            msg_type = msg['msg_type']
-            parent_msg_id = msg['parent_header']['msg_id']
-            if msg_type == 'stream' and parent_msg_id == 'fake-msg-id':
-                content = msg['content']
-                self.assertEqual(content['name'], 'stdout')
-                self.assertIn('kernel-foo-value', content['text'])
-                self.assertNotIn('ignored', content['text'])
-                self.assertNotIn('overridden', content['text'])
-                break
+        req = self.execute_request('import os; print(os.getenv("KERNEL_FOO"), os.getenv("NOT_KERNEL"), os.getenv("KERNEL_GATEWAY"), os.getenv("TEST_VAR"))')
+        ws.write_message(json_encode(req))
+        content = yield self.await_stream(ws)
+        self.assertEqual(content['name'], 'stdout')
+        self.assertIn('kernel-foo-value', content['text'])
+        self.assertNotIn('ignored', content['text'])
+        self.assertNotIn('overridden', content['text'])
+        self.assertIn('allowed', content['text'])
 
         ws.close()
+
     @gen_test
     def test_get_swagger_yaml_spec(self):
         """Getting the swagger.yaml spec should be ok"""
@@ -507,6 +538,22 @@ class TestDefaults(TestJupyterWebsocket):
         """Getting the swagger.json spec should be ok"""
         response = yield self.http_client.fetch(self.get_url('/api/swagger.json'))
         self.assertEqual(response.code, 200)
+
+    @gen_test
+    def test_kernel_env_auth_token(self):
+        """Kernel should not have KG_AUTH_TOKEN in its environment."""
+        os.environ['KG_AUTH_TOKEN'] = 'fake-secret'
+
+        try:
+            ws = yield self.spawn_kernel()
+            req = self.execute_request('import os; print(os.getenv("KG_AUTH_TOKEN"))')
+            ws.write_message(json_encode(req))
+            content = yield self.await_stream(ws)
+            self.assertNotIn('fake-secret', content['text'])
+        finally:
+            del os.environ['KG_AUTH_TOKEN']
+            ws.close()
+
 
 class TestCustomDefaultKernel(TestJupyterWebsocket):
     """Tests gateway behavior when setting a custom default kernelspec."""
@@ -526,11 +573,32 @@ class TestCustomDefaultKernel(TestJupyterWebsocket):
         self.assertEqual(response.code, 500)
         self.assertTrue('raise NoSuchKernel' in str(response.body))
 
+
+class TestForceKernel(TestJupyterWebsocket):
+    """Tests gateway behavior when forcing a kernelspec."""
+    def setup_app(self):
+        self.app.prespawn_count = 2
+        self.app.seed_uri = os.path.join(RESOURCES,
+            'zen{}.ipynb'.format(sys.version_info.major))
+        self.app.force_kernel_name = 'python{}'.format(sys.version_info.major)
+
+    @gen_test
+    def test_force_kernel_name(self):
+        """Should create a Python kernel."""
+        response = yield self.http_client.fetch(
+            self.get_url('/api/kernels'),
+            method='POST',
+            body='{"name": "fake-kernel"}',
+            raise_error=False
+        )
+        self.assertEqual(response.code, 201)
+
+
 class TestEnableDiscovery(TestJupyterWebsocket):
     """Tests gateway behavior with kernel listing enabled."""
-    def setup_app(self):
+    def setup_configurables(self):
         """Enables kernel listing for all tests."""
-        self.app.list_kernels = True
+        self.app.personality.list_kernels = True
 
     @gen_test
     def test_enable_kernel_list(self):
@@ -545,11 +613,6 @@ class TestEnableDiscovery(TestJupyterWebsocket):
         )
         self.assertEqual(response.code, 200)
         self.assertTrue('[]' in str(response.body))
-        response = yield self.http_client.fetch(
-            self.get_url('/_api/activity'),
-        )
-        self.assertEqual(response.code, 200)
-        self.assertTrue('{}' in str(response.body))
 
 class TestPrespawnKernels(TestJupyterWebsocket):
     """Tests gateway behavior when kernels are spawned at startup."""
@@ -577,12 +640,16 @@ class TestPrespawnKernels(TestJupyterWebsocket):
         app.max_kernels = 2
         self.assertRaises(RuntimeError, app.init_configurables)
 
+
 class TestBaseURL(TestJupyterWebsocket):
     """Tests gateway behavior when a custom base URL is configured."""
     def setup_app(self):
         """Sets the custom base URL and enables kernel listing."""
         self.app.base_url = '/fake/path'
-        self.app.list_kernels = True
+
+    def setup_configurables(self):
+        """Enables kernel listing for all tests."""
+        self.app.personality.list_kernels = True
 
     @gen_test
     def test_base_url(self):
@@ -590,12 +657,6 @@ class TestBaseURL(TestJupyterWebsocket):
         # Should not exist at root
         response = yield self.http_client.fetch(
             self.get_url('/api/kernels'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 404)
-        response = yield self.http_client.fetch(
-            self.get_url('/_api/activity'),
             method='GET',
             raise_error=False
         )
@@ -608,11 +669,6 @@ class TestBaseURL(TestJupyterWebsocket):
         )
         self.assertEqual(response.code, 200)
 
-        response = yield self.http_client.fetch(
-            self.get_url('/fake/path/_api/activity'),
-            method='GET'
-        )
-        self.assertEqual(response.code, 200)
 
 class TestRelativeBaseURL(TestJupyterWebsocket):
     """Tests gateway behavior when a relative base URL is configured."""
@@ -632,6 +688,7 @@ class TestRelativeBaseURL(TestJupyterWebsocket):
         )
         self.assertEqual(response.code, 200)
 
+
 class TestSeedURI(TestJupyterWebsocket):
     """Tests gateway behavior when a seeding kernel memory with code from a
     notebook."""
@@ -646,40 +703,14 @@ class TestSeedURI(TestJupyterWebsocket):
 
         # Print the encoded "zen of python" string, the kernel should have
         # it imported
-        ws.write_message(json_encode({
-            'header': {
-                'username': '',
-                'version': '5.0',
-                'session': '',
-                'msg_id': 'fake-msg-id',
-                'msg_type': 'execute_request'
-            },
-            'parent_header': {},
-            'channel': 'shell',
-            'content': {
-                'code': 'print(this.s)',
-                'silent': False,
-                'store_history': False,
-                'user_expressions' : {}
-            },
-            'metadata': {},
-            'buffers': {}
-        }))
-
-        # Read messages until we see the output from the print or hit the
-        # test timeout
-        while 1:
-            msg = yield ws.read_message()
-            msg = json_decode(msg)
-            msg_type = msg['msg_type']
-            parent_msg_id = msg['parent_header']['msg_id']
-            if msg_type == 'stream' and parent_msg_id == 'fake-msg-id':
-                content = msg['content']
-                self.assertEqual(content['name'], 'stdout')
-                self.assertIn('Gur Mra bs Clguba', content['text'])
-                break
+        req = self.execute_request('print(this.s)')
+        ws.write_message(json_encode(req))
+        content = yield self.await_stream(ws)
+        self.assertEqual(content['name'], 'stdout')
+        self.assertIn('Gur Mra bs Clguba', content['text'])
 
         ws.close()
+
 
 class TestRemoteSeedURI(TestSeedURI):
     """Tests gateway behavior when a seeding kernel memory with code from a
@@ -688,6 +719,7 @@ class TestRemoteSeedURI(TestSeedURI):
     def setup_app(self):
         """Sets the seed notebook to a remote notebook."""
         self.app.seed_uri = 'https://gist.githubusercontent.com/parente/ccd36bd7db2f617d58ce/raw/zen{}.ipynb'.format(sys.version_info.major)
+
 
 class TestBadSeedURI(TestJupyterWebsocket):
     """Tests gateway behavior when seeding kernel memory with notebook code
@@ -731,6 +763,7 @@ class TestBadSeedURI(TestJupyterWebsocket):
         app.seed_uri = os.path.join(RESOURCES, 'unknown_kernel.ipynb')
         self.assertRaises(NoSuchKernel, app.init_configurables)
 
+
 class TestKernelLanguageSupport(TestJupyterWebsocket):
     """Tests gateway behavior when a client requests a specific kernel spec."""
     def setup_app(self):
@@ -762,92 +795,11 @@ class TestKernelLanguageSupport(TestJupyterWebsocket):
 
         # Print the encoded "zen of python" string, the kernel should have
         # it imported
-        ws.write_message(json_encode({
-            'header': {
-                'username': '',
-                'version': '5.0',
-                'session': '',
-                'msg_id': 'fake-msg-id',
-                'msg_type': 'execute_request'
-            },
-            'parent_header': {},
-            'channel': 'shell',
-            'content': {
-                'code': code,
-                'silent': False,
-                'store_history': False,
-                'user_expressions' : {}
-            },
-            'metadata': {},
-            'buffers': {}
-        }))
-
-        # Read messages until we see the output from the print or hit the
-        # test timeout
-        while 1:
-            msg = yield ws.read_message()
-            msg = json_decode(msg)
-            msg_type = msg['msg_type']
-            parent_msg_id = msg['parent_header']['msg_id']
-            if msg_type == 'stream' and parent_msg_id == 'fake-msg-id':
-                content = msg['content']
-                self.assertEqual(content['name'], 'stdout')
-                self.assertIn('Gur Mra bs Clguba', content['text'])
-                break
+        req = self.execute_request(code)
+        ws.write_message(json_encode(req))
+        content = yield self.await_stream(ws)
+        self.assertEqual(content['name'], 'stdout')
+        self.assertIn('Gur Mra bs Clguba', content['text'])
 
         ws.close()
 
-class TestActivityAPI(TestJupyterWebsocket):
-    """Tests gateway behavior when the activity API is enabled."""
-    def setup_app(self):
-        """Enables kernel listing so the activity API is available."""
-        self.app.list_kernels = True
-
-    @gen_test
-    def test_api_lists_kernels_with_flag_set(self):
-        """Server should report initial activity values for one kernel with
-        one client connected to it.
-        """
-        ws = yield self.spawn_kernel()
-        ws.write_message(json_encode({
-            'header': {
-                'username': '',
-                'version': '5.0',
-                'session': '',
-                'msg_id': 'fake-msg-id',
-                'msg_type': 'execute_request'
-            },
-            'parent_header': {},
-            'channel': 'shell',
-            'content': {
-                'code': 'import time\ntime.sleep(1)',
-                'silent': False,
-                'store_history': False,
-                'user_expressions' : {}
-            },
-            'metadata': {},
-            'buffers': {}
-        }))
-        # Get the first set of activities
-        response = yield self.http_client.fetch(
-            self.get_url('/_api/activity'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200)
-        first_kernel_id, first_activity_data = json.loads(response.body.decode('UTF-8')).popitem()
-        # Close the websocket and get the activities
-        ws.close()
-
-        # Request the activity
-        response = yield self.http_client.fetch(
-            self.get_url('/_api/activity'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200)
-        second_kernel_id, second_activity_data = json.loads(response.body.decode('UTF-8')).popitem()
-
-        self.assertEqual(first_kernel_id, second_kernel_id, 'Kernel IDs were not equal')
-        self.assertEqual(first_activity_data['connections'], 1, 'The wrong number of connections existed during the first request')
-        self.assertEqual(second_activity_data['connections'], 0, 'The wrong number of connections existed during the first request')

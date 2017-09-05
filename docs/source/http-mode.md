@@ -1,8 +1,6 @@
 ## `notebook-http` Mode
 
-**NOTE** This mode may one day become a plug-in to the Jupyter Kernel Gateway or split into a separate project. The concepts documented here, however, will survive any move.
-
-The `KernelGatewayApp.api` command line argument can be set to `notebook-http`. In this mode, the kernel gateway exposes annotated cells in the `KernelGatewayApp.seed_uri` notebook as HTTP resources.
+The `KernelGatewayApp.api` command line argument can be set to `kernel_gateway.notebook_http`. This mode, or *personality*, has the kernel gateway expose annotated cells in the `KernelGatewayApp.seed_uri` notebook as HTTP resources.
 
 To turn a notebook cell into a HTTP handler, you must prefix it with a single line comment. The comment describes the HTTP method and resource, as in the following Python example:
 
@@ -66,7 +64,7 @@ The response from an annotated cell may be set in one of two ways:
 
 The first method is preferred because it is explicit: a cell writes to stdout using the appropriate language statement or function (e.g. Python `print`, Scala `println`, R `print`, etc.). The kernel gateway collects all bytes from kernel stdout and returns the entire byte string verbatim as the response body.
 
-The second approach is used if nothing appears on stdout. This method is dependent upon language semantics, kernel implementation, and library usage. The response body will be the `content.data` structure in the Jupyter [`execute_result`](http://jupyter-client.readthedocs.org/en/latest/messaging.html#id4) message.
+The second approach is used if nothing appears on stdout. This method is dependent upon language semantics, kernel implementation, and library usage. The response body will be the `content.data` structure in the Jupyter [`execute_result`](https://jupyter-client.readthedocs.io/en/latest/messaging.html#id4) message.
 
 In both cases, the response defaults to status `200 OK` and `Content-Type: text/plain` if cell execution completes without error. If an error occurs, the status is `500 Internal Server Error`. If the HTTP request method is not one supported at the given path, the status is `405 Not Supported`. If you wish to return custom status or headers, see the next section.
 
@@ -87,7 +85,7 @@ print(json.dumps(res))
 Now consider this companion cell which runs after the cell above and sets a custom response header and status:
 
 ```python
-# ResponseInfo GET /hello/world
+# ResponseInfo POST /person
 print(json.dumps({
     "headers" : {
         "Content-Type" : "application/json"
@@ -117,22 +115,25 @@ Currently, every response is listed as having a status of `200 OK`.
 
 ### Running
 
-The minimum number of arguments needed to run in HTTP mode are `--KernelGatewayApp.api=notebook-http` and `--KernelGatewayApp.seed_uri=some/notebook/file.ipynb`.
+The minimum number of arguments needed to run in HTTP mode are `--KernelGatewayApp.api=kernel_gateway.notebook_http` and `--KernelGatewayApp.seed_uri=some/notebook/file.ipynb`.
 
-If you  development, you can run the kernel gateway in `notebook-http` mode using the Makefile in this repository:
+The notebook-http mode will honor the `prespawn_count` command line argument. This will start the specified number of kernels and execute the `seed_uri` notebook on each one. Requests will be distributed across the pool of prespawned kernels, providing a minimal layer of scalability. An example which starts a pool of 5 kernels follows:
 
 ```bash
-make dev ARGS="--KernelGatewayApp.api='notebook-http' \
+jupyter kernelgateway \
+    --KernelGatewayApp.api='kernel_gateway.notebook_http' \
+    --KernelGatewayApp.seed_uri='/srv/kernel_gateway/etc/api_examples/api_intro.ipynb' \
+    --KernelGatewayApp.prespawn_count=5
+```
+
+Refer to the [scotch recommendation API demo](https://github.com/jupyter/kernel_gateway_demos/tree/master/scotch_demo) for more detail.
+
+If you have a development setup, you can run the kernel gateway in `notebook-http` mode using the Makefile in this repository:
+
+```bash
+make dev ARGS="--KernelGatewayApp.api='kernel_gateway.notebook_http' \
 --KernelGatewayApp.seed_uri=/srv/kernel_gateway/etc/api_examples/api_intro.ipynb"
 ```
 
 With the above Make command, all of the notebooks in `etc/api_examples` are
 mounted into `/srv/kernel_gateway/etc/api_examples/` and can be run in HTTP mode.
-
-The notebook-http mode will honor the `prespawn_count` command line argument. This will start the specified number of kernels and execute the `seed_uri` notebook on each one. Requests will be distributed across the pool of prespawned kernels, providing a minimal layer of scalability. An example which starts a pool of 5 kernels follows:
-
-```bash
-make dev ARGS="--KernelGatewayApp.api='notebook-http' \
-    --KernelGatewayApp.seed_uri=/srv/kernel_gateway/etc/api_examples/api_intro.ipynb" \
-    --KernelGatewayApp.prespawn_count=5
-```

@@ -7,7 +7,7 @@ import sys
 import json
 
 from .test_gatewayapp import TestGatewayAppBase, RESOURCES
-from ..services.swagger.handlers import SwaggerSpecHandler
+from ..notebook_http.swagger.handlers import SwaggerSpecHandler
 from tornado.testing import gen_test
 
 class TestDefaults(TestGatewayAppBase):
@@ -16,7 +16,7 @@ class TestDefaults(TestGatewayAppBase):
         """Sets the notebook-http mode and points to a local test notebook as
         the basis for the API.
         """
-        self.app.api = 'notebook-http'
+        self.app.api = 'kernel_gateway.notebook_http'
         self.app.seed_uri = os.path.join(RESOURCES,
                                          'kernel_api{}.ipynb'.format(sys.version_info.major))
 
@@ -190,14 +190,26 @@ class TestDefaults(TestGatewayAppBase):
     @gen_test
     def test_blocked_download_notebook_source(self):
         """Notebook source should not exist under the path /_api/source when
-        `allow_notebook` download is False or not configured.
+        `allow_notebook_download` is False or not configured.
         """
         response = yield self.http_client.fetch(
             self.get_url('/_api/source'),
             method='GET',
             raise_error=False
         )
-        self.assertEqual(response.code, 404, "/_api/source did not block as allow_notebook_download is false")
+        self.assertEqual(response.code, 404, "/_api/source found when allow_notebook_download is false")
+
+    @gen_test
+    def test_blocked_public(self):
+        """Public static assets should not exist under the path /public when
+        `static_path` is False or not configured.
+        """
+        response = yield self.http_client.fetch(
+            self.get_url('/public'),
+            method='GET',
+            raise_error=False
+        )
+        self.assertEqual(response.code, 404, "/public found when static_path is false")
 
     @gen_test
     def test_api_returns_execute_result(self):
@@ -232,6 +244,30 @@ class TestDefaults(TestGatewayAppBase):
         self.assertEqual(response.code, 200, 'GET endpoint did not return 200.')
         self.assertEqual(response.body, b'KERNEL_GATEWAY is 1\n', 'Unexpected body in response to GET.')
 
+class TestPublicStatic(TestGatewayAppBase):
+    """Tests gateway behavior when public static assets are enabled."""
+    def setup_app(self):
+        """Sets the notebook-http mode and points to a local test notebook as
+        the basis for the API. 
+        """
+        self.app.api = 'kernel_gateway.notebook_http'
+        self.app.seed_uri = os.path.join(RESOURCES,
+                                         'kernel_api{}.ipynb'.format(sys.version_info.major))
+
+    def setup_configurables(self):
+        """Configures the static path at the root of the resources/public folder."""
+        self.app.personality.static_path = os.path.join(RESOURCES, 'public')
+
+    @gen_test
+    def test_get_public(self):
+        """index.html should exist under `/public/index.html`."""
+        response = yield self.http_client.fetch(
+            self.get_url('/public/index.html'),
+            method='GET',
+            raise_error=False
+        )
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response.headers.get('Content-Type'), 'text/html')
 
 class TestSourceDownload(TestGatewayAppBase):
     """Tests gateway behavior when notebook download is allowed."""
@@ -239,10 +275,12 @@ class TestSourceDownload(TestGatewayAppBase):
         """Sets the notebook-http mode, points to a local test notebook as
         the basis for the API, and enables downloads of that notebook.
         """
-        self.app.api = 'notebook-http'
+        self.app.api = 'kernel_gateway.notebook_http'
         self.app.seed_uri = os.path.join(RESOURCES,
                                          'kernel_api{}.ipynb'.format(sys.version_info.major))
-        self.app.allow_notebook_download = True
+
+    def setup_configurables(self):
+        self.app.personality.allow_notebook_download = True
 
     @gen_test
     def test_download_notebook_source(self):
@@ -260,7 +298,7 @@ class TestCustomResponse(TestGatewayAppBase):
         """Sets the notebook-http mode and points to a local test notebook as
         the basis for the API.
         """
-        self.app.api = 'notebook-http'
+        self.app.api = 'kernel_gateway.notebook_http'
         self.app.seed_uri = os.path.join(RESOURCES,
                                          'responses_{}.ipynb'.format(sys.version_info.major))
 
@@ -309,7 +347,7 @@ class TestKernelPool(TestGatewayAppBase):
         the basis for the API, and spawns 3 kernels to service requests.
         """
         self.app.prespawn_count = 3
-        self.app.api = 'notebook-http'
+        self.app.api = 'kernel_gateway.notebook_http'
         self.app.seed_uri = os.path.join(RESOURCES,
                                          'kernel_api{}.ipynb'.format(sys.version_info.major))
 
@@ -354,8 +392,7 @@ class TestKernelPool(TestGatewayAppBase):
 
     @gen_test
     def test_locking_semaphore_of_kernel_resources(self):
-        """Kernel pool should prevent more than one request from running on a
-        kernel at a time.
+        """Kernel pool should prevent more than one request from running on a kernel at a time.
         """
         futures = []
         for _ in range(self.app.prespawn_count*2+1):
@@ -376,7 +413,7 @@ class TestSwaggerSpec(TestGatewayAppBase):
     """Tests gateway behavior when generating a  custom base URL is configured."""
     def setup_app(self):
         """Sets a different notebook for testing the swagger generation."""
-        self.app.api = 'notebook-http'
+        self.app.api = 'kernel_gateway.notebook_http'
         self.app.seed_uri = os.path.join(RESOURCES,
                                          'simple_api{}.ipynb'.format(sys.version_info.major))
 
@@ -414,10 +451,12 @@ class TestBaseURL(TestGatewayAppBase):
     def setup_app(self):
         """Sets the custom base URL and enables the notebook-defined API."""
         self.app.base_url = '/fake/path'
-        self.app.api = 'notebook-http'
-        self.app.allow_notebook_download = True
+        self.app.api = 'kernel_gateway.notebook_http'
         self.app.seed_uri = os.path.join(RESOURCES,
                                          'kernel_api{}.ipynb'.format(sys.version_info.major))
+
+    def setup_configurables(self):
+        self.app.personality.allow_notebook_download = True
 
     @gen_test
     def test_base_url(self):
@@ -447,6 +486,27 @@ class TestBaseURL(TestGatewayAppBase):
 
         response = yield self.http_client.fetch(
             self.get_url('/fake/path/_api/spec/swagger.json'),
+            method='GET',
+            raise_error=False
+        )
+        self.assertEqual(response.code, 200)
+
+
+class TestForceKernel(TestGatewayAppBase):
+    """Tests gateway behavior when forcing a kernel spec."""
+    def setup_app(self):
+        """Sets the notebook-http mode, points to a local test notebook as
+        the basis for the API, and forces a Python kernel.
+        """
+        self.app.api = 'kernel_gateway.notebook_http'
+        self.app.seed_uri = os.path.join(RESOURCES, 'unknown_kernel.ipynb')
+        self.app.force_kernel_name = 'python{}'.format(sys.version_info.major)
+
+    @gen_test
+    def test_force_kernel_spec(self):
+        """Should start properly.."""
+        response = yield self.http_client.fetch(
+            self.get_url('/_api/spec/swagger.json'),
             method='GET',
             raise_error=False
         )

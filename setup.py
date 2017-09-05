@@ -22,7 +22,7 @@ Jupyter Kernel Gateway is a web server that supports different mechanisms for
 spawning and communicating with Jupyter kernels, such as:
 
 * A Jupyter Notebook server-compatible HTTP API used for requesting kernels
-  and talking the `Jupyter kernel protocol <https://jupyter-client.readthedocs.org/en/latest/messaging.html>`_
+  and talking the `Jupyter kernel protocol <https://jupyter-client.readthedocs.io/en/latest/messaging.html>`_
   with the kernels over Websockets
 * A HTTP API defined by annotated notebook cells that maps HTTP verbs and
   resources to code to execute on a kernel
@@ -40,25 +40,24 @@ containerized and scaled out using common technologies like
     packages=[
         'kernel_gateway',
         'kernel_gateway.base',
+        'kernel_gateway.jupyter_websocket',
+        'kernel_gateway.notebook_http',
+        'kernel_gateway.notebook_http.cell',
+        'kernel_gateway.notebook_http.swagger',
         'kernel_gateway.services',
-        'kernel_gateway.services.activity',
-        'kernel_gateway.services.api',
-        'kernel_gateway.services.cell',
         'kernel_gateway.services.kernels',
         'kernel_gateway.services.kernelspecs',
-        'kernel_gateway.services.notebooks',
         'kernel_gateway.services.sessions',
-        'kernel_gateway.services.swagger',
     ],
     scripts=[
         'scripts/jupyter-kernelgateway'
     ],
     install_requires=[
-        'jupyter_core>=4.0,<5.0',
-        'jupyter_client>=4.2.0,<5.0',
-        'notebook>=4.1.0,<5.0',
-        'traitlets>=4.2.0,<5.0',
-        'tornado>=4.2.0,<5.0',
+        'jupyter_core>=4.0',
+        'jupyter_client>=4.2.0',
+        'notebook>=5.0.0,<6.0',
+        'traitlets>=4.2.0',
+        'tornado>=4.2.0',
         'requests>=2.7,<3.0'
     ],
     classifiers=[
@@ -70,6 +69,7 @@ containerized and scaled out using common technologies like
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 3'
     ],
+    include_package_data=True,
 )
 
 if 'setuptools' in sys.modules:

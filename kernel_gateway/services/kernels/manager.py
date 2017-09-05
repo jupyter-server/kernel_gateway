@@ -2,10 +2,10 @@
 # Distributed under the terms of the Modified BSD License.
 """Kernel manager that optionally seeds kernel memory."""
 
-from tornado import gen
+from functools import partial
+from tornado import gen, ioloop
 from notebook.services.kernels.kernelmanager import MappingKernelManager
 from jupyter_client.ioloop import IOLoopKernelManager
-from ..cell.parser import APICellParser
 
 class SeedingMappingKernelManager(MappingKernelManager):
     """Extends the notebook kernel manager to optionally execute the contents
@@ -16,7 +16,10 @@ class SeedingMappingKernelManager(MappingKernelManager):
 
     @property
     def seed_kernelspec(self):
-        """Gets the kernel spec name required to run the seed notebook.
+        """Gets the kernel spec name for run the seed notebook.
+
+        Prefers the spec name forced by configuration over the spec in the
+        seed notebook itself.
 
         Returns
         -------
@@ -27,7 +30,10 @@ class SeedingMappingKernelManager(MappingKernelManager):
             return self._seed_kernelspec
 
         if self.parent.seed_notebook:
-            self._seed_kernelspec = self.parent.seed_notebook['metadata']['kernelspec']['name']
+            if self.parent.force_kernel_name:
+                self._seed_kernelspec = self.parent.force_kernel_name
+            else:
+                self._seed_kernelspec = self.parent.seed_notebook['metadata']['kernelspec']['name']
         else:
             self._seed_kernelspec = None
 
@@ -56,18 +62,22 @@ class SeedingMappingKernelManager(MappingKernelManager):
         return self._seed_source
 
     def start_seeded_kernel(self, *args, **kwargs):
-        """Starts a kernel using the language specified in the seed notebook.
+        """Start a kernel using the language specified in the seed notebook.
 
-        If there is no seed notebook, start a kernel using the other parameters
-        specified.
+        Run synchronously so that any exceptions thrown while seed rise up
+        to the caller.
         """
-        self.start_kernel(kernel_name=self.seed_kernelspec, *args, **kwargs)
+        start = partial(self.start_kernel, kernel_name=self.seed_kernelspec,
+                        *args, **kwargs)
+        return ioloop.IOLoop.current().run_sync(start)
 
     @gen.coroutine
     def start_kernel(self, *args, **kwargs):
         """Starts a kernel and then executes a list of code cells on it if a
         seed notebook exists.
         """
+        if self.parent.force_kernel_name:
+            kwargs['kernel_name'] = self.parent.force_kernel_name
         kernel_id = yield gen.maybe_future(super(SeedingMappingKernelManager, self).start_kernel(*args, **kwargs))
 
         if kernel_id and self.seed_source is not None:
@@ -76,14 +86,19 @@ class SeedingMappingKernelManager(MappingKernelManager):
             if kernel.kernel_name == self.seed_kernelspec:
                 # Create a client to talk to the kernel
                 client = kernel.client()
+                # Clone client session. Workaround duplicate signatures due to shared digest_history
+                # This shouldn't be necessary after upstream fixes.
+                client.session = type(client.session)(
+                    config=kernel.session.config,
+                    key=kernel.session.key,
+                )
                 # Only start channels and wait for ready in HTTP mode
                 client.start_channels()
                 client.wait_for_ready()
                 for code in self.seed_source:
-                    # Execute every non-API code cell and wait for each to
-                    # succeed or fail
-                    api_cell_parser = APICellParser(self.seed_kernelspec)
-                    if not api_cell_parser.is_api_cell(code) and not api_cell_parser.is_api_response_cell(code):
+                    # Check with the personality whether it wants the cell
+                    # executed
+                    if self.parent.personality.should_seed_cell(code):
                         client.execute(code)
                         msg = client.shell_channel.get_msg(block=True)
                         if msg['content']['status'] != 'ok':
@@ -91,16 +106,22 @@ class SeedingMappingKernelManager(MappingKernelManager):
                             client.stop_channels()
                             # Shutdown the kernel
                             self.shutdown_kernel(kernel_id)
-                            raise RuntimeError('Error seeding kernel memory')
+                            raise RuntimeError('Error seeding kernel memory', msg['content'])
                 # Shutdown the channels to remove any lingering ZMQ messages
                 client.stop_channels()
         raise gen.Return(kernel_id)
 
 class KernelGatewayIOLoopKernelManager(IOLoopKernelManager):
-    """Extends the IOLoopKernelManager used by the SeedingMappingKernelManager
-    to include the environment variable 'KERNEL_GATEWAY' set to '1', indicating
-    that the notebook is executing within a Jupyter Kernel Gateway
+    """Extends the IOLoopKernelManager used by the SeedingMappingKernelManager.
+
+    Sets the environment variable 'KERNEL_GATEWAY' to '1' to indicate that the
+    kernel is executing within a Jupyter Kernel Gateway instance. Removes the
+    KG_AUTH_TOKEN from the environment variables passed to the kernel when it 
+    starts.
     """
     def _launch_kernel(self, kernel_cmd, **kw):
-        kw['env']['KERNEL_GATEWAY'] = '1'
+        env = kw['env']
+        env['KERNEL_GATEWAY'] = '1'
+        if 'KG_AUTH_TOKEN' in env:
+            del env['KG_AUTH_TOKEN']
         return super(KernelGatewayIOLoopKernelManager, self)._launch_kernel(kernel_cmd, **kw)

@@ -7,15 +7,17 @@ import socket
 import errno
 import logging
 import nbformat
+import importlib
+import signal
 
 try:
     from urlparse import urlparse
 except ImportError:
     from urllib.parse import urlparse
 
-from traitlets import Unicode, Integer, Bool, default
+from traitlets import Unicode, Integer, default, observe
 
-from jupyter_core.application import JupyterApp
+from jupyter_core.application import JupyterApp, base_aliases
 from jupyter_client.kernelspec import KernelSpecManager
 
 # Install the pyzmq ioloop. This has to be done before anything else from
@@ -28,21 +30,27 @@ from tornado import web
 from tornado.log import enable_pretty_logging
 
 from notebook.notebookapp import random_ports
-from .services.api.handlers import default_handlers as default_api_handlers
-from .services.kernels.handlers import default_handlers as default_kernel_handlers
-from .services.kernelspecs.handlers import default_handlers as default_kernelspec_handlers
-from .services.sessions.handlers import default_handlers as default_session_handlers
+from ._version import __version__
 from .services.sessions.sessionmanager import SessionManager
-from .services.activity.manager import ActivityManager
 from .services.kernels.manager import SeedingMappingKernelManager
-from .services.kernels.pool import KernelPool, ManagedKernelPool
-from .base.handlers import default_handlers as default_base_handlers
-from .services.notebooks.handlers import NotebookAPIHandler, parameterize_path, NotebookDownloadHandler
-from .services.cell.parser import APICellParser
-from .services.swagger.handlers import SwaggerSpecHandler
-from .services.activity.handlers import ActivityHandler
 
-from notebook.utils import url_path_join
+# Only present for generating help documentation
+from .notebook_http import NotebookHTTPPersonality
+from .jupyter_websocket import JupyterWebsocketPersonality
+
+# Add additional command line aliases
+aliases = dict(base_aliases)
+aliases.update({
+    'ip': 'KernelGatewayApp.ip',
+    'port': 'KernelGatewayApp.port',
+    'port_retries': 'KernelGatewayApp.port_retries',
+    'api': 'KernelGatewayApp.api',
+    'seed_uri': 'KernelGatewayApp.seed_uri',
+    'keyfile': 'KernelGatewayApp.keyfile',
+    'certfile': 'KernelGatewayApp.certfile',
+    'client-ca': 'KernelGatewayApp.client_ca'
+})
+
 
 class KernelGatewayApp(JupyterApp):
     """Application that provisions Jupyter kernels and proxies HTTP/Websocket
@@ -54,50 +62,66 @@ class KernelGatewayApp(JupyterApp):
     - starts the Tornado event loop
     """
     name = 'jupyter-kernel-gateway'
+    version = __version__
     description = """
         Jupyter Kernel Gateway
 
         Provisions Jupyter kernels and proxies HTTP/Websocket traffic
         to them.
     """
+
+    # Also include when generating help options
+    classes = [NotebookHTTPPersonality, JupyterWebsocketPersonality]
+    # Enable some command line shortcuts
+    aliases = aliases
+
     # Server IP / PORT binding
     port_env = 'KG_PORT'
-    port = Integer(config=True,
+    port_default_value = 8888
+    port = Integer(port_default_value, config=True,
         help="Port on which to listen (KG_PORT env var)"
     )
+
     @default('port')
     def port_default(self):
-        return int(os.getenv(self.port_env, 8888))
-    
+        return int(os.getenv(self.port_env, self.port_default_value))
+
     port_retries_env = 'KG_PORT_RETRIES'
-    port_retries = Integer(config=True,
+    port_retries_default_value = 50
+    port_retries = Integer(port_retries_default_value, config=True,
         help="Number of ports to try if the specified port is not available (KG_PORT_RETRIES env var)"
     )
+
     @default('port_retries')
     def port_retries_default(self):
-        return int(os.getenv(self.port_retries_env, 50))
+        return int(os.getenv(self.port_retries_env, self.port_retries_default_value))
 
     ip_env = 'KG_IP'
-    ip = Unicode(config=True,
+    ip_default_value = '127.0.0.1'
+    ip = Unicode(ip_default_value, config=True,
         help="IP address on which to listen (KG_IP env var)"
     )
+
     @default('ip')
     def ip_default(self):
-        return os.getenv(self.ip_env, '127.0.0.1')
+        return os.getenv(self.ip_env, self.ip_default_value)
 
     # Base URL
     base_url_env = 'KG_BASE_URL'
-    base_url = Unicode(config=True,
+    base_url_default_value = '/'
+    base_url = Unicode(base_url_default_value, config=True,
         help="""The base path for mounting all API resources (KG_BASE_URL env var)""")
+
     @default('base_url')
     def base_url_default(self):
-        return os.getenv(self.base_url_env, '/')
+        return os.getenv(self.base_url_env, self.base_url_default_value)
 
     # Token authorization
     auth_token_env = 'KG_AUTH_TOKEN'
     auth_token = Unicode(config=True,
         help='Authorization token required for all requests (KG_AUTH_TOKEN env var)'
     )
+
     @default('auth_token')
     def _auth_token_default(self):
         return os.getenv(self.auth_token_env, '')
@@ -107,6 +131,7 @@ class KernelGatewayApp(JupyterApp):
     allow_credentials = Unicode(config=True,
         help='Sets the Access-Control-Allow-Credentials header. (KG_ALLOW_CREDENTIALS env var)'
     )
+
     @default('allow_credentials')
     def allow_credentials_default(self):
         return os.getenv(self.allow_credentials_env, '')
@@ -115,6 +140,7 @@ class KernelGatewayApp(JupyterApp):
     allow_headers = Unicode(config=True,
         help='Sets the Access-Control-Allow-Headers header. (KG_ALLOW_HEADERS env var)'
     )
+
     @default('allow_headers')
     def allow_headers_default(self):
         return os.getenv(self.allow_headers_env, '')
@@ -123,6 +149,7 @@ class KernelGatewayApp(JupyterApp):
     allow_methods = Unicode(config=True,
         help='Sets the Access-Control-Allow-Methods header. (KG_ALLOW_METHODS env var)'
     )
+
     @default('allow_methods')
     def allow_methods_default(self):
         return os.getenv(self.allow_methods_env, '')
@@ -131,6 +158,7 @@ class KernelGatewayApp(JupyterApp):
     allow_origin = Unicode(config=True,
         help='Sets the Access-Control-Allow-Origin header. (KG_ALLOW_ORIGIN env var)'
     )
+
     @default('allow_origin')
     def allow_origin_default(self):
         return os.getenv(self.allow_origin_env, '')
@@ -139,6 +167,7 @@ class KernelGatewayApp(JupyterApp):
     expose_headers = Unicode(config=True,
         help='Sets the Access-Control-Expose-Headers header. (KG_EXPOSE_HEADERS env var)'
     )
+
     @default('expose_headers')
     def expose_headers_default(self):
         return os.getenv(self.expose_headers_env, '')
@@ -147,35 +176,38 @@ class KernelGatewayApp(JupyterApp):
     max_age = Unicode(config=True,
         help='Sets the Access-Control-Max-Age header. (KG_MAX_AGE env var)'
     )
+
     @default('max_age')
     def max_age_default(self):
         return os.getenv(self.max_age_env, '')
 
     max_kernels_env = 'KG_MAX_KERNELS'
-    max_kernels = Integer(config=True,
+    max_kernels = Integer(None, config=True,
         allow_none=True,
-        help='Limits the number of kernel instances allowed to run by this gateway. (KG_MAX_KERNELS env var)'
+        help='Limits the number of kernel instances allowed to run by this gateway. Unbounded by default. (KG_MAX_KERNELS env var)'
     )
+
     @default('max_kernels')
     def max_kernels_default(self):
         val = os.getenv(self.max_kernels_env)
         return val if val is None else int(val)
 
     seed_uri_env = 'KG_SEED_URI'
-    seed_uri = Unicode(config=True,
+    seed_uri = Unicode(None, config=True,
         allow_none=True,
-        help='Runs the notebook (.ipynb) at the given URI on every kernel launched. (KG_SEED_URI env var)'
+        help='Runs the notebook (.ipynb) at the given URI on every kernel launched. No seed by default. (KG_SEED_URI env var)'
     )
+
     @default('seed_uri')
     def seed_uri_default(self):
         return os.getenv(self.seed_uri_env)
 
     prespawn_count_env = 'KG_PRESPAWN_COUNT'
-    prespawn_count = Integer(config=True,
-        default_value=None,
+    prespawn_count = Integer(None, config=True,
         allow_none=True,
-        help='Number of kernels to prespawn using the default language. (KG_PRESPAWN_COUNT env var)'
+        help='Number of kernels to prespawn using the default language. No prespawn by default. (KG_PRESPAWN_COUNT env var)'
     )
+
     @default('prespawn_count')
     def prespawn_count_default(self):
         val = os.getenv(self.prespawn_count_env)
@@ -183,51 +215,95 @@ class KernelGatewayApp(JupyterApp):
 
     default_kernel_name_env = 'KG_DEFAULT_KERNEL_NAME'
     default_kernel_name = Unicode(config=True,
-        help="""The default kernel name when spawning a kernel (KG_DEFAULT_KERNEL_NAME env var)""")
+        help='Default kernel name when spawning a kernel (KG_DEFAULT_KERNEL_NAME env var)')
+
     @default('default_kernel_name')
     def default_kernel_name_default(self):
         # defaults to Jupyter's default kernel name on empty string
         return os.getenv(self.default_kernel_name_env, '')
 
-    list_kernels_env = 'KG_LIST_KERNELS'
-    list_kernels = Bool(config=True,
-        help="""Permits listing of the running kernels using API endpoints /api/kernels
-            and /api/sessions (KG_LIST_KERNELS env var). Note: Jupyter Notebook
-            allows this by default but kernel gateway does not."""
-    )
-    @default('list_kernels')
-    def list_kernels_default(self):
-        return os.getenv(self.list_kernels_env, 'False') == 'True'
+    force_kernel_name_env = 'KG_FORCE_KERNEL_NAME'
+    force_kernel_name = Unicode(config=True,
+        help='Override any kernel name specified in a notebook or request (KG_FORCE_KERNEL_NAME env var)')
+
+    @default('force_kernel_name')
+    def force_kernel_name_default(self):
+        return os.getenv(self.force_kernel_name_env, '')
 
     api_env = 'KG_API'
-    api = Unicode('jupyter-websocket',
+    api_default_value = 'kernel_gateway.jupyter_websocket'
+    api = Unicode(api_default_value,
         config=True,
-        help='Controls which API to expose, that of a Jupyter kernel or the seed notebook\'s, using values "jupyter-websocket" or "notebook-http" (KG_API env var)'
+        help="""Controls which API to expose, that of a Jupyter notebook server, the seed
+            notebook's, or one provided by another module, respectively using values
+            'kernel_gateway.jupyter_websocket', 'kernel_gateway.notebook_http', or
+            another fully qualified module name (KG_API env var)
+            """
     )
+
     @default('api')
     def api_default(self):
-        return os.getenv(self.api_env, 'jupyter-websocket')
+        return os.getenv(self.api_env, self.api_default_value)
 
-    def _api_changed(self, name, old, new):
-        if new not in ['notebook-http', 'jupyter-websocket']:
-            raise ValueError('Invalid API value, valid values are jupyter-websocket and notebook-http')
+    @observe('api')
+    def api_changed(self, event):
+        try:
+            self._load_api_module(event['new'])
+        except ImportError:
+            # re-raise with more sensible message to help the user
+            raise ImportError('API module {} not found'.format(event['new']))
 
-    allow_notebook_download_env = 'KG_ALLOW_NOTEBOOK_DOWNLOAD'
-    allow_notebook_download = Bool(
-        config=True,
-        help="Optional API to download the notebook source code in notebook-http mode, defaults to not allow"
-    )
-    @default('allow_notebook_download')
-    def allow_notebook_download_default(self):
-        return os.getenv(self.allow_notebook_download_env, 'False') == 'True'
+    certfile_env = 'KG_CERTFILE'
+    certfile = Unicode(None, config=True, allow_none=True,
+                       help="""The full path to an SSL/TLS certificate file. (KG_CERTFILE env var)""")
+
+    @default('certfile')
+    def certfile_default(self):
+        return os.getenv(self.certfile_env)
+
+    keyfile_env = 'KG_KEYFILE'
+    keyfile = Unicode(None, config=True, allow_none=True,
+                      help="""The full path to a private key file for usage with SSL/TLS. (KG_KEYFILE env var)""")
+
+    @default('keyfile')
+    def keyfile_default(self):
+        return os.getenv(self.keyfile_env)
+
+    client_ca_env = 'KG_CLIENT_CA'
+    client_ca = Unicode(None, config=True, allow_none=True,
+                        help="""The full path to a certificate authority certificate for SSL/TLS client authentication. (KG_CLIENT_CA env var)""")
+
+    @default('client_ca')
+    def client_ca_default(self):
+        return os.getenv(self.client_ca_env)
+
+    def _load_api_module(self, module_name):
+        """Tries to import the given module name.
+
+        Parameters
+        ----------
+        module_name: str
+            Module name to import
+
+        Returns
+        -------
+        module
+            Module with the given name loaded using importlib.import_module
+        """
+        # some compatibility allowances
+        if module_name == 'jupyter-websocket':
+            module_name = 'kernel_gateway.jupyter_websocket'
+        elif module_name == 'notebook-http':
+            module_name = 'kernel_gateway.notebook_http'
+        return importlib.import_module(module_name)
 
     def _load_notebook(self, uri):
         """Loads a notebook from the local filesystem or HTTP URL.
 
         Raises
         ------
-        RuntimeError if no installed kernel can handle the language specified
-        in the notebook.
+        RuntimeError if there is no kernel spec matching the one specified in
+        the notebook or forced via configuration.
 
         Returns
         -------
@@ -248,7 +324,8 @@ class KernelGatewayApp(JupyterApp):
             notebook = nbformat.reads(resp.text, 4)
 
         # Error if no kernel spec can handle the language requested
-        kernel_name = notebook['metadata']['kernelspec']['name']
+        kernel_name = self.force_kernel_name if self.force_kernel_name \
+            else notebook['metadata']['kernelspec']['name']
         self.kernel_spec_manager.get_kernel_spec(kernel_name)
 
         return notebook
@@ -269,7 +346,10 @@ class KernelGatewayApp(JupyterApp):
 
     def init_configurables(self):
         """Initializes all configurable objects including a kernel manager, kernel
-        spec manager, session manager, kernel pool, and activity manager.
+        spec manager, session manager, and personality.
+
+        Any kernel pool configured by the personality will be its responsibility
+        to shut down.
 
         Optionally, loads a notebook and prespawns the configured number of
         kernels.
@@ -294,12 +374,6 @@ class KernelGatewayApp(JupyterApp):
             **kwargs
         )
 
-        self.activity_manager = ActivityManager(
-            parent=self,
-            log=self.log,
-            kernel_manager=self.kernel_manager
-        )
-
         self.session_manager = SessionManager(
             log=self.log,
             kernel_manager=self.kernel_manager
@@ -312,104 +386,28 @@ class KernelGatewayApp(JupyterApp):
                     self.prespawn_count, self.max_kernels)
                 )
 
-        if self.api == 'notebook-http':
-            self.kernel_pool = ManagedKernelPool(
-                self.prespawn_count,
-                self.kernel_manager
-            )
-        else:
-            self.kernel_pool = KernelPool(
-                self.prespawn_count,
-                self.kernel_manager
-            )
+        api_module = self._load_api_module(self.api)
+        func = getattr(api_module, 'create_personality')
+        self.personality = func(parent=self, log=self.log)
+
+        self.personality.init_configurables()
 
     def init_webapp(self):
-        """Initializes Tornado web application with kernel handlers.
+        """Initializes Tornado web application with uri handlers.
 
         Adds the various managers and web-front configuration values to the
         Tornado settings for reference by the handlers.
-
-        Notes
-        -----
-        Uses the `api` setting to determine which handlers to add.
-        Developers should note: this may be refactored in the future.
         """
-        # Redefine handlers off the base_url path
-        handlers = []
-        if self.api == 'notebook-http':
-            # Register the NotebookDownloadHandler if configuration allows
-            if self.allow_notebook_download:
-                handlers.append((
-                    url_path_join('/', self.base_url, r'/_api/source'),
-                    NotebookDownloadHandler,
-                    {'path': self.seed_uri}
-                ))
-
-            # Discover the notebook endpoints and their implementations
-            parser = APICellParser(self.kernel_manager.seed_kernelspec)
-            endpoints = parser.endpoints(self.kernel_manager.seed_source)
-            response_sources = parser.endpoint_responses(self.kernel_manager.seed_source)
-            if len(endpoints) == 0:
-                raise RuntimeError('No endpoints were discovered. Check your notebook to make sure your cells are annotated correctly.')
-
-            # Cycle through the (endpoint_path, source) tuples and register their handlers
-            for endpoint_path, verb_source_map in endpoints:
-                parameterized_path = parameterize_path(endpoint_path)
-                parameterized_path = url_path_join('/', self.base_url, parameterized_path)
-                self.log.info('Registering endpoint_path: {}, methods: ({})'.format(
-                    parameterized_path,
-                    list(verb_source_map.keys())
-                ))
-                response_source_map = response_sources[endpoint_path] if endpoint_path in response_sources else {}
-                handler_args = { 'sources' : verb_source_map,
-                    'response_sources' : response_source_map,
-                    'kernel_pool' : self.kernel_pool,
-                    'kernel_name' : self.kernel_manager.seed_kernelspec
-                }
-                handlers.append((parameterized_path, NotebookAPIHandler, handler_args))
-
-            # Register the swagger API spec handler
-            handlers.append(
-                (url_path_join('/', self.base_url, r'/_api/spec/swagger.json'),
-                SwaggerSpecHandler, {
-                    'notebook_path' : self.seed_uri,
-                    'source_cells': self.kernel_manager.seed_source,
-                    'kernel_spec' : self.kernel_manager.seed_kernelspec
-            }))
-
-            # Register the 404 catch-all last
-            handlers.append(default_base_handlers[-1])
-
-            # Enable the same pretty logging the notebook uses
-            enable_pretty_logging()
-        elif self.api == 'jupyter-websocket':
-            # append the activity monitor for websocket mode
-            handlers.append((
-                url_path_join('/', self.base_url, r'/_api/activity'),
-                ActivityHandler,
-                {}
-            ))
-            # append tuples for the standard kernel gateway endpoints
-            for handler in (
-                default_api_handlers +
-                default_kernel_handlers +
-                default_kernelspec_handlers +
-                default_session_handlers +
-                default_base_handlers
-            ):
-                # Create a new handler pattern rooted at the base_url
-                pattern = url_path_join('/', self.base_url, handler[0])
-                # Some handlers take args, so retain those in addition to the
-                # handler class ref
-                new_handler = tuple([pattern] + list(handler[1:]))
-                handlers.append(new_handler)
+        # Enable the same pretty logging the notebook uses
+        enable_pretty_logging()
 
         # Configure the tornado logging level too
         logging.getLogger().setLevel(self.log_level)
 
+        handlers = self.personality.create_request_handlers()
+
         self.web_app = web.Application(
             handlers=handlers,
-            activity_manager=self.activity_manager,
             kernel_manager=self.kernel_manager,
             session_manager=self.session_manager,
             contents_manager=self.contents_manager,
@@ -422,22 +420,58 @@ class KernelGatewayApp(JupyterApp):
             kg_expose_headers=self.expose_headers,
             kg_max_age=self.max_age,
             kg_max_kernels=self.max_kernels,
-            kg_list_kernels=self.list_kernels,
             kg_api=self.api,
+            kg_personality=self.personality,
             # Also set the allow_origin setting used by notebook so that the
             # check_origin method used everywhere respects the value
             allow_origin=self.allow_origin
         )
 
+        # promote the current personality's "config" tagged traitlet values to webapp settings
+        for trait_name, trait_value in self.personality.class_traits(config=True).items():
+            kg_name = 'kg_' + trait_name
+            # a personality's traitlets may not overwrite the kernel gateway's
+            if kg_name not in self.web_app.settings:
+                self.web_app.settings[kg_name] = trait_value.get(obj=self.personality)
+            else:
+                self.log.warning('The personality trait name, %s, conflicts with a kernel gateway trait.', trait_name)
+
+    def _build_ssl_options(self):
+        """Build a dictionary of SSL options for the tornado HTTP server.
+
+        Taken directly from jupyter/notebook code.
+        """
+        ssl_options = {}
+        if self.certfile:
+            ssl_options['certfile'] = self.certfile
+        if self.keyfile:
+            ssl_options['keyfile'] = self.keyfile
+        if self.client_ca:
+            ssl_options['ca_certs'] = self.client_ca
+        if not ssl_options:
+            # None indicates no SSL config
+            ssl_options = None
+        else:
+            # SSL may be missing, so only import it if it's to be used
+            import ssl
+            # Disable SSLv3 by default, since its use is discouraged.
+            ssl_options.setdefault('ssl_version', ssl.PROTOCOL_TLSv1)
+            if ssl_options.get('ca_certs', False):
+                ssl_options.setdefault('cert_reqs', ssl.CERT_REQUIRED)
+
+        return ssl_options
+
     def init_http_server(self):
         """Initializes a HTTP server for the Tornado web application on the
         configured interface and port.
-        
+
         Tries to find an open port if the one configured is not available using
         the same logic as the Jupyer Notebook server.
         """
-        self.http_server = httpserver.HTTPServer(self.web_app)
-        
+        ssl_options = self._build_ssl_options()
+        self.http_server = httpserver.HTTPServer(self.web_app,
+                                                 ssl_options=ssl_options)
+
         for port in random_ports(self.port, self.port_retries+1):
             try:
                 self.http_server.listen(port, self.ip)
@@ -461,16 +495,19 @@ class KernelGatewayApp(JupyterApp):
     def start(self):
         """Starts an IO loop for the application."""
         super(KernelGatewayApp, self).start()
-        self.log.info('The Jupyter Kernel Gateway is running at: http://{}:{}'.format(
-            self.ip, self.port
+        self.log.info('Jupyter Kernel Gateway at http{}://{}:{}'.format(
+            's' if self.keyfile else '', self.ip, self.port
         ))
-
         self.io_loop = ioloop.IOLoop.current()
+
+        signal.signal(signal.SIGTERM, self._signal_stop)
 
         try:
             self.io_loop.start()
         except KeyboardInterrupt:
             self.log.info("Interrupted...")
+        finally:
+            self.shutdown()
 
     def stop(self):
         """
@@ -482,7 +519,11 @@ class KernelGatewayApp(JupyterApp):
         self.io_loop.add_callback(_stop)
 
     def shutdown(self):
-        """Stops all kernels in the pool."""
-        self.kernel_pool.shutdown()
+        """Stop all kernels in the pool."""
+        self.personality.shutdown()
+
+    def _signal_stop(self, sig, frame):
+        self.log.info("Received signal to terminate.")
+        self.io_loop.stop()
 
 launch_instance = KernelGatewayApp.launch_instance

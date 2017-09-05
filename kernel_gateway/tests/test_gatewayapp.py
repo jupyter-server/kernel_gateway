@@ -6,7 +6,7 @@ import logging
 import unittest
 import os
 from kernel_gateway.gatewayapp import KernelGatewayApp, ioloop
-from ..services.swagger.handlers import SwaggerSpecHandler
+from ..notebook_http.swagger.handlers import SwaggerSpecHandler
 from tornado.testing import AsyncHTTPTestCase, LogTrapTestCase
 
 RESOURCES = os.path.join(os.path.dirname(__file__), 'resources')
@@ -38,9 +38,11 @@ class TestGatewayAppConfig(unittest.TestCase):
         os.environ['KG_MAX_KERNELS'] = '1'
         os.environ['KG_SEED_URI'] = 'fake-notebook.ipynb'
         os.environ['KG_PRESPAWN_COUNT'] = '1'
+        os.environ['KG_FORCE_KERNEL_NAME'] = 'fake_kernel_forced'
         os.environ['KG_DEFAULT_KERNEL_NAME'] = 'fake_kernel'
-        os.environ['KG_LIST_KERNELS'] = 'True'
-        os.environ['KG_ALLOW_NOTEBOOK_DOWNLOAD'] = 'True'
+        os.environ['KG_KEYFILE'] = '/test/fake.key'
+        os.environ['KG_CERTFILE'] = '/test/fake.crt'
+        os.environ['KG_CLIENT_CA'] = '/test/fake_ca.crt'
 
         app = KernelGatewayApp()
 
@@ -59,12 +61,14 @@ class TestGatewayAppConfig(unittest.TestCase):
         self.assertEqual(app.seed_uri, 'fake-notebook.ipynb')
         self.assertEqual(app.prespawn_count, 1)
         self.assertEqual(app.default_kernel_name, 'fake_kernel')
-        self.assertEqual(app.list_kernels, True)
-        self.assertEqual(app.allow_notebook_download, True)
+        self.assertEqual(app.force_kernel_name, 'fake_kernel_forced')
+        self.assertEqual(app.keyfile, '/test/fake.key')
+        self.assertEqual(app.certfile, '/test/fake.crt')
+        self.assertEqual(app.client_ca, '/test/fake_ca.crt')
 
 class TestGatewayAppBase(AsyncHTTPTestCase, LogTrapTestCase):
     """Base class for integration style tests using HTTP/Websockets against an
-    instance of the gateway app..
+    instance of the gateway app.
 
     Attributes
     ----------
@@ -90,11 +94,17 @@ class TestGatewayAppBase(AsyncHTTPTestCase, LogTrapTestCase):
         self.app = KernelGatewayApp(log_level=logging.CRITICAL)
         self.setup_app()
         self.app.init_configurables()
+        self.setup_configurables()
         self.app.init_webapp()
         return self.app.web_app
 
     def setup_app(self):
         """Override to configure KernelGatewayApp instance before initializing
         configurables and the web app.
+        """
+        pass
+
+    def setup_configurables(self):
+        """Override to configure further settings, such as the personality.
         """
         pass

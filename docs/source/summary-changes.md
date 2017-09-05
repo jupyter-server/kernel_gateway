@@ -2,10 +2,66 @@
 
 See `git log` for a more detailed summary of changes.
 
+## 2.0
+
+### 2.0.0 (2017-05-30)
+
+* Update compatibility to notebook>=5.0
+* Remove kernel activity API in favor of the one in the notebook package
+* Update project overview in the documentation
+* Inherit the server `PATH` when launching a new kernel via POST request
+  with custom environment variables
+* Fix kernel cleanup upon SIGTERM
+* Fix security requirements in the swagger spec
+* Fix configured headers for OPTIONS requests
+
+## 1.2
+
+### 1.2.1 (2017-04-01)
+
+* Add support for auth token as a query parameter
+
+### 1.2.0 (2017-02-12)
+
+* Add command line option to whitelist environment variables for `POST /api/kernels`
+* Add support for HTTPS key and certificate files
+* Improve the flow and explanations in the `api_intro` notebook
+* Fix incorrect use of `metadata.kernelspec.name` as a language name instead of
+  `metadata.language.info`
+* Fix lingering kernel regression after Ctrl-C interrupt
+* Switch to a conda-based dev setup from docker
+
+## 1.1
+
+### 1.1.1 (2016-09-10)
+
+* Add LICENSE file to package distributions
+
+### 1.1.0 (2016-09-08)
+
+* Add an option to force a specific kernel spec for all requests and seed notebooks
+* Add support for specifying notebook-http APIs using full Swagger specs
+* Add option to serve static web assets from Tornado in notebook-http mode
+* Add command line aliases for common options (e.g., `--ip`)
+* Fix Tornado 4.4 compatbility: sending an empty body string with a 204 response
+
+## 1.0
+
+### 1.0.0 (2016-07-15)
+
+* Introduce an [API for developing mode plug-ins](https://jupyter-kernel-gateway.readthedocs.io/en/latest/plug-in.html)
+* Separate `jupyter-websocket` and `notebook-http` modes into  plug-in packages
+* Move mode specific command line options into their respective packages (see `--help-all`)
+* Report times with respect to UTC in `/_api/activity` responses
+
 ## 0.6
 
-## 0.6.0 (2016-XX-XX)
+### 0.6.0 (2016-06-17)
 
+* Switch HTTP status from 402 for 403 when server reaches the max kernel limit
+* Explicitly shutdown kernels when the server shuts down
+* Remove `KG_AUTH_TOKEN` from the environment of kernels
+* Fix missing swagger document in release
 * Add `--KernelGateway.port_retries` option like in Jupyter Notebook
 * Fix compatibility with Notebook 4.2 session handler `create_session` call
 
