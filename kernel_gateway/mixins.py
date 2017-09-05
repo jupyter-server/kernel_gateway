@@ -65,14 +65,18 @@ class TokenAuthorizationMixin(object):
         package.
         """
         request_is_options = False
-        if 'requests' in dir(self):
-            if 'method' in dir(self.requests):
-                if self.requests.method == 'OPTIONS':
+        if 'request' in dir(self):
+            if 'method' in dir(self.request):
+                if self.request.method == 'OPTIONS':
                     request_is_options = True
 
         server_token = self.settings.get('kg_auth_token')
+        print(server_token)
+        print(request_is_options)
+        print(self.request.method)
         if server_token != '' and not request_is_options:
             client_token = self.get_argument('token', None)
+            print(client_token)
             if client_token is None:
                 client_token = self.request.headers.get('Authorization')
                 if client_token and client_token.startswith(self.header_prefix):
