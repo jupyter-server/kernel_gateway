@@ -64,14 +64,8 @@ class TokenAuthorizationMixin(object):
         with the `@web.authenticated` decorated methods in the notebook
         package.
         """
-        request_is_options = False
-        if 'request' in dir(self):
-            if 'method' in dir(self.request):
-                if self.request.method == 'OPTIONS':
-                    request_is_options = True
-
         server_token = self.settings.get('kg_auth_token')
-        if server_token != '' and not request_is_options:
+        if server_token and not self.request.method == 'OPTIONS':
             client_token = self.get_argument('token', None)
             if client_token is None:
                 client_token = self.request.headers.get('Authorization')
