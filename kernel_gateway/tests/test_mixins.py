@@ -45,6 +45,7 @@ class TestTokenAuthMixin(unittest.TestCase):
 
     def test_no_token_required(self):
         """Status should be None."""
+        self.mixin.request = Mock({})
         self.mixin.settings['kg_auth_token'] = ''
         self.mixin.prepare()
         self.assertEqual(self.mixin.is_prepared, True)
@@ -120,6 +121,14 @@ class TestTokenAuthMixin(unittest.TestCase):
         self.mixin.prepare()
         self.assertEqual(self.mixin.is_prepared, False)
         self.assertEqual(self.mixin.status_code, 401)
+
+    def test_unset_client_token_with_options(self):
+        """No token is needed for an OPTIONS request. Enables CORS."""
+        attrs = { 'method' : 'OPTIONS' }
+        self.mixin.request = Mock(**attrs)
+        self.mixin.prepare()
+        self.assertEqual(self.mixin.is_prepared, True)
+        self.assertEqual(self.mixin.status_code, None)
 
 
 class TestableJSONErrorsHandler(JSONErrorsMixin):
