@@ -151,7 +151,7 @@ class TestDefaults(TestJupyterWebsocket):
 
     @gen_test
     def test_options_and_auth_token(self):
-        "OPTIONS requests should not need to submit a token."
+        """OPTIONS requests should not need to submit a token."""
         # Set token requirement
         app = self.get_app()
         app.settings['kg_auth_token'] = 'fake-token'
