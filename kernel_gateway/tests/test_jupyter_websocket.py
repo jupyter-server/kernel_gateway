@@ -150,6 +150,20 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertRaises(ImportError, _set_api)
 
     @gen_test
+    def test_options_without_auth_token(self):
+        """OPTIONS requests doesn't need to submit a token. Used for CORS preflight."""
+        # Set token requirement
+        app = self.get_app()
+        app.settings['kg_auth_token'] = 'fake-token'
+
+        # Confirm that OPTIONS request doesn't require token
+        response = yield self.http_client.fetch(
+            self.get_url('/api'),
+            method='OPTIONS'
+        )
+        self.assertEqual(response.code, 200)
+
+    @gen_test
     def test_auth_token(self):
         """All server endpoints should check the configured auth token."""
         # Set token requirement

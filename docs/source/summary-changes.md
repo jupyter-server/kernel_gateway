@@ -4,6 +4,10 @@ See `git log` for a more detailed summary of changes.
 
 ## 2.0
 
+### 2.0.1 (2017-09-09)
+
+* [PR-258](https://github.com/jupyter/kernel_gateway/pull/258): Remove auth token check for OPTIONS requests (CORS)
+
 ### 2.0.0 (2017-05-30)
 
 * Update compatibility to notebook>=5.0

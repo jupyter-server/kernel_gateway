@@ -65,7 +65,7 @@ class TokenAuthorizationMixin(object):
         package.
         """
         server_token = self.settings.get('kg_auth_token')
-        if server_token:
+        if server_token and not self.request.method == 'OPTIONS':
             client_token = self.get_argument('token', None)
             if client_token is None:
                 client_token = self.request.headers.get('Authorization')
