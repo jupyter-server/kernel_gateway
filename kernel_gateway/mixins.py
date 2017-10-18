@@ -3,6 +3,8 @@
 """Mixins for Tornado handlers."""
 
 import json
+import traceback
+from tornado import web
 try:
     # py3
     from http.client import responses
@@ -85,12 +87,8 @@ class JSONErrorsMixin(object):
     def write_error(self, status_code, **kwargs):
         """Responds with an application/json error object.
 
-        Overrides the HTML renderer in the notebook server to force all errors
-        to JSON format. Outputs all errors as JSON in the same format as the
-        notebook.base.handlers.json_errors decorator. Avoids having to
-        (re-)decorate everything that the kernel gateway overrides. Also avoids
-        rendering errors as a human readable HTML pages in cases where the
-        decorator is not used in the notebook code base.
+        Overrides the APIHandler.write_error in the notebook server until it
+        properly sets the 'reason' field. 
 
         Parameters
         ----------
@@ -108,20 +106,24 @@ class JSONErrorsMixin(object):
         exc_info = kwargs.get('exc_info')
         message = ''
         reason = responses.get(status_code, 'Unknown HTTP Error')
+        reply = {
+            'reason': reason,
+            'message': message,
+        }
         if exc_info:
             exception = exc_info[1]
             # Get the custom message, if defined
-            try:
-                message = exception.log_message % exception.args
-            except Exception:
-                pass
+            if isinstance(exception, web.HTTPError):
+                reply['message'] = exception.log_message or message
+            else:
+                reply['message'] = 'Unknown server error'
+                reply['traceback'] = ''.join(traceback.format_exception(*exc_info))
 
             # Construct the custom reason, if defined
             custom_reason = getattr(exception, 'reason', '')
             if custom_reason:
-                reason = custom_reason
+                reply['reason'] = custom_reason
 
         self.set_header('Content-Type', 'application/json')
         self.set_status(status_code)
-        reply = dict(reason=reason, message=message)
         self.finish(json.dumps(reply))
