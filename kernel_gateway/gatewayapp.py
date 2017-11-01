@@ -10,12 +10,14 @@ import nbformat
 import importlib
 import signal
 
+from notebook.services.kernels.kernelmanager import MappingKernelManager
+
 try:
     from urlparse import urlparse
 except ImportError:
     from urllib.parse import urlparse
 
-from traitlets import Unicode, Integer, default, observe
+from traitlets import Unicode, Integer, default, observe, Type, Instance
 
 from jupyter_core.application import JupyterApp, base_aliases
 from jupyter_client.kernelspec import KernelSpecManager
@@ -277,6 +279,24 @@ class KernelGatewayApp(JupyterApp):
     def client_ca_default(self):
         return os.getenv(self.client_ca_env)
 
+    kernel_spec_manager = Instance(KernelSpecManager, allow_none=True)
+
+    kernel_spec_manager_class = Type(
+        default_value=KernelSpecManager,
+        config=True,
+        help="""
+        The kernel spec manager class to use. Should be a subclass
+        of `jupyter_client.kernelspec.KernelSpecManager`.
+        """
+    )
+
+    kernel_manager_class = Type(
+        klass=MappingKernelManager,
+        default_value=SeedingMappingKernelManager,
+        config=True,
+        help="""The kernel manager class to use."""
+    )
+
     def _load_api_module(self, module_name):
         """Tries to import the given module name.
 
@@ -366,7 +386,11 @@ class KernelGatewayApp(JupyterApp):
         kwargs = {}
         if self.default_kernel_name:
             kwargs['default_kernel_name'] = self.default_kernel_name
-        self.kernel_manager = SeedingMappingKernelManager(
+
+        self.kernel_spec_manager = self.kernel_spec_manager_class(
+            parent=self,
+        )
+        self.kernel_manager = self.kernel_manager_class(
             parent=self,
             log=self.log,
             connection_dir=self.runtime_dir,
@@ -411,7 +435,7 @@ class KernelGatewayApp(JupyterApp):
             kernel_manager=self.kernel_manager,
             session_manager=self.session_manager,
             contents_manager=self.contents_manager,
-            kernel_spec_manager=self.kernel_manager.kernel_spec_manager,
+            kernel_spec_manager=self.kernel_spec_manager,
             kg_auth_token=self.auth_token,
             kg_allow_credentials=self.allow_credentials,
             kg_allow_headers=self.allow_headers,
