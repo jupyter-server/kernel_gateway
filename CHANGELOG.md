@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.2 (2017-11-10)
+
+* [PR-266](https://github.com/jupyter/kernel_gateway/pull/266): Make KernelManager and KernelSpecManager configurable
+* [PR-263](https://github.com/jupyter/kernel_gateway/pull/263): Correct JSONErrorsMixin for compatibility with notebook 5.2.0
+
 ## 2.0.1 (2017-09-09)
 
 * [PR-258](https://github.com/jupyter/kernel_gateway/pull/258): Remove auth token check for OPTIONS requests (CORS)
