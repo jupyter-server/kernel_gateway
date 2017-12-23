@@ -12,7 +12,7 @@ MULTIPART_FORM_DATA = 'multipart/form-data'
 APPLICATION_JSON = 'application/json'
 TEXT_PLAIN = 'text/plain'
 
-def format_request(bundle):
+def format_request(bundle, kernel_name):
     """Creates an assignment statement of bundle JSON-encoded to a variable
     named `REQUEST`.
 
@@ -22,7 +22,10 @@ def format_request(bundle):
         `REQUEST = "<json-encoded expression>"`
     """
     bundle = json.dumps(bundle)
-    statement = "REQUEST = {}".format(bundle)
+    if kernel_name == 'iperl':
+        statement = "my $REQUEST = {}".format(bundle)
+    else:
+        statement = "REQUEST = {}".format(bundle)
     return statement
 
 def parameterize_path(path):

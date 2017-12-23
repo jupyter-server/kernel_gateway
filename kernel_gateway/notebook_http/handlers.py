@@ -184,7 +184,7 @@ class NotebookAPIHandler(TokenAuthorizationMixin,
                 'headers' : headers_to_dict(self.request.headers)
             })
             # Turn the request string into a valid code string
-            request_code = format_request(request)
+            request_code = format_request(request, self.kernel_name)
 
             # Run the request and source code and yield until there's a result
             access_log.debug('Request code for notebook cell is: {}'.format(request_code))
