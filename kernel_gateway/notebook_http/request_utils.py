@@ -12,9 +12,9 @@ MULTIPART_FORM_DATA = 'multipart/form-data'
 APPLICATION_JSON = 'application/json'
 TEXT_PLAIN = 'text/plain'
 
-def format_request(bundle, kernel_name):
+def format_request(bundle, kernel_language='no_spec'):
     """Creates an assignment statement of bundle JSON-encoded to a variable
-    named `REQUEST`.
+    named `REQUEST` by default or kernel_language specific.
 
     Returns
     -------
@@ -22,7 +22,7 @@ def format_request(bundle, kernel_name):
         `REQUEST = "<json-encoded expression>"`
     """
     bundle = json.dumps(bundle)
-    if kernel_name == 'iperl':
+    if kernel_language.lower() == 'perl':
         statement = "my $REQUEST = {}".format(bundle)
     else:
         statement = "REQUEST = {}".format(bundle)
