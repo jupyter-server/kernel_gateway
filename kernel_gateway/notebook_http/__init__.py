@@ -124,7 +124,7 @@ class NotebookHTTPPersonality(LoggingConfigurable):
                 'response_sources' : response_source_map,
                 'kernel_pool' : self.kernel_pool,
                 'kernel_name' : self.parent.kernel_manager.seed_kernelspec,
-                'kernel_language' : self.kernel_language or 'no_spec'
+                'kernel_language' : self.kernel_language or ''
             }
             handlers.append((parameterized_path, NotebookAPIHandler, handler_args))
 

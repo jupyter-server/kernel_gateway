@@ -12,7 +12,7 @@ MULTIPART_FORM_DATA = 'multipart/form-data'
 APPLICATION_JSON = 'application/json'
 TEXT_PLAIN = 'text/plain'
 
-def format_request(bundle, kernel_language='no_spec'):
+def format_request(bundle, kernel_language=''):
     """Creates an assignment statement of bundle JSON-encoded to a variable
     named `REQUEST` by default or kernel_language specific.
 

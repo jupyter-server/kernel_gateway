@@ -46,7 +46,7 @@ class NotebookAPIHandler(TokenAuthorizationMixin,
     services.cell.parser.APICellParser for detail about how the source cells
     are identified, parsed, and associated with HTTP verbs and paths.
     """
-    def initialize(self, sources, response_sources, kernel_pool, kernel_name, kernel_language='no_spec'):
+    def initialize(self, sources, response_sources, kernel_pool, kernel_name, kernel_language=''):
         self.kernel_pool = kernel_pool
         self.sources = sources
         self.kernel_name = kernel_name
