@@ -151,12 +151,12 @@ class TestRequestUtils(unittest.TestCase):
     def test_format_request_with_a_kernel_language_python(self):
         test_request = ('''{"body": "", "headers": {}, "args": {}, "path": {}}''')
         request_code = format_request(test_request, 'python')
-        self.assertTrue(request_code.startswith("REQUEST"), 'Call format_request without a kernel_language "python" was not formatted correctly')
+        self.assertTrue(request_code.startswith("REQUEST"), 'Call format_request with a kernel_language "python" was not formatted correctly')
 
     def test_format_request_with_a_kernel_language_scala(self):
         test_request = ('''{"body": "", "headers": {}, "args": {}, "path": {}}''')
         request_code = format_request(test_request, 'scala')
-        self.assertTrue(request_code.startswith("REQUEST"), 'Call format_request without a kernel_language "scala" was not formatted correctly')
+        self.assertTrue(request_code.startswith("REQUEST"), 'Call format_request with a kernel_language "scala" was not formatted correctly')
 
     def test_format_request_with_a_kernel_language_perl(self):
         test_request = ('''{"body": "", "headers": {}, "args": {}, "path": {}}''')
