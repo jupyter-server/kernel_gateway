@@ -33,8 +33,7 @@ class NotebookAPIHandler(TokenAuthorizationMixin,
     kernel_pool
         Instance of services.kernels.ManagedKernelPool
     kernel_name
-        Kernel spec name used to launch the kernel pool. Identifies the
-        language of the source code cells.
+        Kernel spec name used to launch the kernel pool
     kernel_language
         Kernel spec language used to make language specific operations
 

@@ -19,7 +19,8 @@ def format_request(bundle, kernel_language='no_spec'):
     Returns
     -------
     str
-        `REQUEST = "<json-encoded expression>"`
+        `REQUEST = "<json-encoded expression>"` by default or
+        `<a kernel_language specific variable name> = "<json-encoded expression>"`
     """
     bundle = json.dumps(bundle)
     if kernel_language.lower() == 'perl':
