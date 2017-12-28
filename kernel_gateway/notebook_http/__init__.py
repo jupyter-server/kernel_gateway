@@ -70,6 +70,7 @@ class NotebookHTTPPersonality(LoggingConfigurable):
         self.api_parser = func(parent=self, log=self.log,
                                comment_prefix=prefix,
                                notebook_cells=self.parent.seed_notebook.cells)
+        self.kernel_language = lang
 
     def init_configurables(self):
         """Create a managed kernel pool"""
@@ -122,7 +123,8 @@ class NotebookHTTPPersonality(LoggingConfigurable):
             handler_args = { 'sources' : verb_source_map,
                 'response_sources' : response_source_map,
                 'kernel_pool' : self.kernel_pool,
-                'kernel_name' : self.parent.kernel_manager.seed_kernelspec
+                'kernel_name' : self.parent.kernel_manager.seed_kernelspec,
+                'kernel_language' : self.kernel_language or ''
             }
             handlers.append((parameterized_path, NotebookAPIHandler, handler_args))
 

@@ -33,8 +33,9 @@ class NotebookAPIHandler(TokenAuthorizationMixin,
     kernel_pool
         Instance of services.kernels.ManagedKernelPool
     kernel_name
-        Kernel spec name used to launch the kernel pool. Identifies the
-        language of the source code cells.
+        Kernel spec name used to launch the kernel pool
+    kernel_language
+        Kernel spec language used to make language specific operations
 
     Attributes
     ----------
@@ -45,11 +46,12 @@ class NotebookAPIHandler(TokenAuthorizationMixin,
     services.cell.parser.APICellParser for detail about how the source cells
     are identified, parsed, and associated with HTTP verbs and paths.
     """
-    def initialize(self, sources, response_sources, kernel_pool, kernel_name):
+    def initialize(self, sources, response_sources, kernel_pool, kernel_name, kernel_language=''):
         self.kernel_pool = kernel_pool
         self.sources = sources
         self.kernel_name = kernel_name
         self.response_sources = response_sources
+        self.kernel_language = kernel_language
 
     def finish_future(self, future, result_accumulator):
         """Resolves the promise to respond to a HTTP request handled by a
@@ -184,7 +186,7 @@ class NotebookAPIHandler(TokenAuthorizationMixin,
                 'headers' : headers_to_dict(self.request.headers)
             })
             # Turn the request string into a valid code string
-            request_code = format_request(request)
+            request_code = format_request(request, self.kernel_language)
 
             # Run the request and source code and yield until there's a result
             access_log.debug('Request code for notebook cell is: {}'.format(request_code))
