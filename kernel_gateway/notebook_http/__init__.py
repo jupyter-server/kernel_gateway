@@ -63,14 +63,17 @@ class NotebookHTTPPersonality(LoggingConfigurable):
         # Build the parser using the comment syntax for the notebook language
         func = getattr(cell_parser_module, 'create_parser')
         try:
-            lang = self.parent.seed_source['metadata']['language_info']['name']
+            kernel_language = self.parent.seed_notebook['metadata']['language_info']['name']
         except (AttributeError, KeyError):
-            lang = None
-        prefix = self.comment_prefix[lang]
+            kernel_language = None
+        if kernel_language in self.comment_prefix:
+            prefix = self.comment_prefix[kernel_language]
+        else:
+            prefix = self.comment_prefix[None]
         self.api_parser = func(parent=self, log=self.log,
                                comment_prefix=prefix,
                                notebook_cells=self.parent.seed_notebook.cells)
-        self.kernel_language = lang
+        self.kernel_language = kernel_language
 
     def init_configurables(self):
         """Create a managed kernel pool"""
