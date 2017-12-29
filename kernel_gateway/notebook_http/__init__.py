@@ -66,10 +66,7 @@ class NotebookHTTPPersonality(LoggingConfigurable):
             kernel_language = self.parent.seed_notebook['metadata']['language_info']['name']
         except (AttributeError, KeyError):
             kernel_language = None
-        if kernel_language in self.comment_prefix:
-            prefix = self.comment_prefix[kernel_language]
-        else:
-            prefix = self.comment_prefix[None]
+        prefix = self.comment_prefix.get(kernel_language, '#')
         self.api_parser = func(parent=self, log=self.log,
                                comment_prefix=prefix,
                                notebook_cells=self.parent.seed_notebook.cells)
