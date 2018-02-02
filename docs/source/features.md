@@ -5,7 +5,7 @@ The Jupyter Kernel Gateway has the following features:
 * [`jupyter-websocket` mode](websocket-mode) which provides a 
   Jupyter Notebook server-compatible API for requesting kernels and
   communicating with them using Websockets
-* [`notebook-http` mode](http-mode) which maps HTTP requests to
+* [`notebook-http` mode](http-mode.html) which maps HTTP requests to
   cells in annotated notebooks
 * Option to enable other kernel communication mechanisms by plugging in third party personalities
 * Option to set a shared authentication token and require it from clients
@@ -18,7 +18,7 @@ The Jupyter Kernel Gateway has the following features:
   in the request
 * Option to pre-populate kernel memory from a notebook
 * Option to serve annotated notebooks as HTTP endpoints, see
-  [notebook-http](#notebook-http-mode)
+  [notebook-http](http-mode.html)
 * Option to allow downloading of the notebook source when running
   in `notebook-http` mode
 * Generation of [Swagger specs](http://swagger.io/introducing-the-open-api-initiative/)

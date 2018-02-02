@@ -48,7 +48,7 @@ make dev
 
 Then access the running server at the URL printed in the console.
 
-Run an instance of the kernel gateway server in [`notebook-http` mode](http-mode) using the `api_intro.ipynb` notebook in the repository.
+Run an instance of the kernel gateway server in [`notebook-http` mode](http-mode.html) using the `api_intro.ipynb` notebook in the repository.
 
 ```bash
 make dev-http
