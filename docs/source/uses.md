@@ -11,7 +11,7 @@ The Jupyter Kernel Gateway makes possible the following novel uses of kernels:
   [tmpnb](https://github.com/jupyter/tmpnb), [Binder](http://mybinder.org/),
   or your favorite cluster manager)
 * Create microservices from notebooks via 
-  [`notebook-http` mode](notebook-http-mode)
+  [`notebook-http` mode](http-mode.html)
 
 The following diagram shows how you might use `tmpnb` to deploy a pool of kernel gateway instances in Docker containers to support on-demand interactive compute:
 
