@@ -23,6 +23,10 @@ class MainKernelHandler(TokenAuthorizationMixin,
     def env_whitelist(self):
         return self.settings['kg_personality'].env_whitelist
 
+    @property
+    def env_process_whitelist(self):
+        return self.settings['kg_env_process_whitelist']
+
     @gen.coroutine
     def post(self):
         """Overrides the super class method to honor the max number of allowed
@@ -53,7 +57,10 @@ class MainKernelHandler(TokenAuthorizationMixin,
             # Start with the PATH from the current env. Do not provide the entire environment
             # which might contain server secrets that should not be passed to kernels.
             env = {'PATH': os.getenv('PATH', '')}
-            # Whitelist KERNEL_* args and those allowed by configuration
+            # Whitelist environment variables from current process environment
+            env.update({key: value for key, value in os.environ.items()
+                   if key in self.env_process_whitelist})
+            # Whitelist KERNEL_* args and those allowed by configuration from client
             env.update({key: value for key, value in model['env'].items()
                    if key.startswith('KERNEL_') or key in self.env_whitelist})
             # No way to override the call to start_kernel on the kernel manager

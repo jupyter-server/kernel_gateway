@@ -179,6 +179,10 @@ KernelGatewayApp options
     Default: None
     Runs the notebook (.ipynb) at the given URI on every kernel launched. No
     seed by default. (KG_SEED_URI env var)
+--KernelGatewayApp.env_process_whitelist=<List>
+    Default: []
+    Environment variables allowed to be inherited from current process by a
+    new kernel.
 
 NotebookHTTPPersonality options
 -------------------------------
