@@ -17,7 +17,7 @@ try:
 except ImportError:
     from urllib.parse import urlparse
 
-from traitlets import Unicode, Integer, default, observe, Type, Instance
+from traitlets import Unicode, Integer, default, observe, Type, Instance, List
 
 from jupyter_core.application import JupyterApp, base_aliases
 from jupyter_client.kernelspec import KernelSpecManager
@@ -232,6 +232,14 @@ class KernelGatewayApp(JupyterApp):
     def force_kernel_name_default(self):
         return os.getenv(self.force_kernel_name_env, '')
 
+    env_process_whitelist_env = 'KG_ENV_PROCESS_WHITELIST'
+    env_process_whitelist = List(config=True,
+                                 help="""Environment variables allowed to be inherited from the spawning process by the kernel""")
+
+    @default('env_process_whitelist')
+    def env_process_whitelist_default(self):
+        return os.getenv(self.env_process_whitelist_env, '').split(',')
+
     api_env = 'KG_API'
     api_default_value = 'kernel_gateway.jupyter_websocket'
     api = Unicode(api_default_value,
@@ -444,6 +452,7 @@ class KernelGatewayApp(JupyterApp):
             kg_expose_headers=self.expose_headers,
             kg_max_age=self.max_age,
             kg_max_kernels=self.max_kernels,
+            kg_env_process_whitelist=self.env_process_whitelist,
             kg_api=self.api,
             kg_personality=self.personality,
             # Also set the allow_origin setting used by notebook so that the
