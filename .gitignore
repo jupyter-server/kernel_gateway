@@ -56,5 +56,8 @@ docs/_build/
 # PyBuilder
 target/
 
+# PyCharm
+.idea/
+
 .DS_Store
 .ipynb_checkpoints/

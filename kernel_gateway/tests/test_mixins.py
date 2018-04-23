@@ -137,12 +137,18 @@ class TestableJSONErrorsHandler(JSONErrorsMixin):
         self.headers = {}
         self.response = None
         self.status_code = None
+        self.reason = None
 
     def finish(self, response):
         self.response = response
 
-    def set_status(self, status_code):
+    def set_status(self, status_code, reason=None):
+        # The reason parameter is essentially ignored, but necessary in the signature
+        # in order for custom messages to be returned to the client from tornado.
+        # Tornado's set_status method takes both parameters setting internal members
+        # to both values.  For now, we'll set the member but not use it.
         self.status_code = status_code
+        self.reason = reason
 
     def set_header(self, name, value):
         self.headers[name] = value

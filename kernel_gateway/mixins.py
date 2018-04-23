@@ -125,5 +125,5 @@ class JSONErrorsMixin(object):
                 reply['reason'] = custom_reason
 
         self.set_header('Content-Type', 'application/json')
-        self.set_status(status_code)
+        self.set_status(status_code, reason=reply['reason'])
         self.finish(json.dumps(reply))
