@@ -381,13 +381,25 @@ class TestKernelPool(TestGatewayAppBase):
             method='GET',
             raise_error=False
         )
-        self.assertTrue(response_long_running.running(), 'Long HTTP Request is not running')
+        if callable(getattr(response_long_running, 'done', "")):
+            # Tornado 5
+            self.assertFalse(response_long_running.done(), 'Long HTTP Request is not running')
+        else:
+            # Tornado 4
+            self.assertTrue(response_long_running.running(), 'Long HTTP Request is not running')
+
         response_short_running = yield self.http_client.fetch(
             self.get_url('/sleep/3'),
             method='GET',
             raise_error=False
         )
-        self.assertTrue(response_long_running.running(), 'Long HTTP Request is not running')
+        if callable(getattr(response_long_running, 'done', "")):
+            # Tornado 5
+            self.assertFalse(response_long_running.done(), 'Long HTTP Request is not running')
+        else:
+            # Tornado 4
+            self.assertTrue(response_long_running.running(), 'Long HTTP Request is not running')
+
         self.assertEqual(response_short_running.code, 200, 'Short HTTP Request did not return proper status code of 200')
 
     @gen_test
