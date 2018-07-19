@@ -457,7 +457,9 @@ class KernelGatewayApp(JupyterApp):
             kg_personality=self.personality,
             # Also set the allow_origin setting used by notebook so that the
             # check_origin method used everywhere respects the value
-            allow_origin=self.allow_origin
+            allow_origin=self.allow_origin,
+            # Always allow remote access (has been limited to localhost >= notebook 5.6)
+            allow_remote_access=True
         )
 
         # promote the current personality's "config" tagged traitlet values to webapp settings
