@@ -9,7 +9,7 @@ import logging
 import nbformat
 import importlib
 import signal
-
+from distutils.util import strtobool
 from notebook.services.kernels.kernelmanager import MappingKernelManager
 
 try:
@@ -173,6 +173,16 @@ class KernelGatewayApp(JupyterApp):
     @default('expose_headers')
     def expose_headers_default(self):
         return os.getenv(self.expose_headers_env, '')
+
+    x_headers_env = 'KG_X_HEADERS'
+    x_headers = Unicode(config=True,
+        help='Uses x-* header values for overriding the remote-ip, useful when application is behing a proxy. (KG_X_HEADERS env var)'
+    )
+
+    @default('x_headers')
+    def x_headers_default(self):
+        return os.getenv(self.x_headers_env, 'false')
+
 
     max_age_env = 'KG_MAX_AGE'
     max_age = Unicode(config=True,
@@ -505,6 +515,7 @@ class KernelGatewayApp(JupyterApp):
         """
         ssl_options = self._build_ssl_options()
         self.http_server = httpserver.HTTPServer(self.web_app,
+                                                 xheaders=bool(strtobool(self.x_headers)),
                                                  ssl_options=ssl_options)
 
         for port in random_ports(self.port, self.port_retries+1):

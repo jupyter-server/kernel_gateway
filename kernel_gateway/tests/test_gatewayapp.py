@@ -43,6 +43,8 @@ class TestGatewayAppConfig(unittest.TestCase):
         os.environ['KG_KEYFILE'] = '/test/fake.key'
         os.environ['KG_CERTFILE'] = '/test/fake.crt'
         os.environ['KG_CLIENT_CA'] = '/test/fake_ca.crt'
+        os.environ['KG_X_HEADERS'] = 'true'
+
 
         app = KernelGatewayApp()
 
@@ -65,6 +67,7 @@ class TestGatewayAppConfig(unittest.TestCase):
         self.assertEqual(app.keyfile, '/test/fake.key')
         self.assertEqual(app.certfile, '/test/fake.crt')
         self.assertEqual(app.client_ca, '/test/fake_ca.crt')
+        self.assertEqual(app.x_headers, 'true')
 
 class TestGatewayAppBase(AsyncHTTPTestCase, ExpectLog):
     """Base class for integration style tests using HTTP/Websockets against an
