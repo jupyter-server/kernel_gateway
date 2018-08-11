@@ -9,7 +9,6 @@ import logging
 import nbformat
 import importlib
 import signal
-from distutils.util import strtobool
 from notebook.services.kernels.kernelmanager import MappingKernelManager
 
 try:
@@ -17,7 +16,7 @@ try:
 except ImportError:
     from urllib.parse import urlparse
 
-from traitlets import Unicode, Integer, default, observe, Type, Instance, List
+from traitlets import Unicode, Integer, default, observe, Type, Instance, List, CBool
 
 from jupyter_core.application import JupyterApp, base_aliases
 from jupyter_client.kernelspec import KernelSpecManager
@@ -174,14 +173,14 @@ class KernelGatewayApp(JupyterApp):
     def expose_headers_default(self):
         return os.getenv(self.expose_headers_env, '')
 
-    x_headers_env = 'KG_X_HEADERS'
-    x_headers = Unicode(config=True,
-        help='Uses x-* header values for overriding the remote-ip, useful when application is behing a proxy. (KG_X_HEADERS env var)'
+    trust_xheaders_env = 'KG_TRUST_XHEADERS'
+    trust_xheaders = CBool(False, config=True,
+        help='Use x-* header values for overriding the remote-ip, useful when application is behing a proxy. (KG_TRUST_XHEADERS env var)'
     )
 
-    @default('x_headers')
-    def x_headers_default(self):
-        return os.getenv(self.x_headers_env, 'false')
+    @default('trust_xheaders')
+    def trust_xheaders_default(self):
+        return os.getenv(self.trust_xheaders_env, False)
 
 
     max_age_env = 'KG_MAX_AGE'
@@ -515,7 +514,7 @@ class KernelGatewayApp(JupyterApp):
         """
         ssl_options = self._build_ssl_options()
         self.http_server = httpserver.HTTPServer(self.web_app,
-                                                 xheaders=bool(strtobool(self.x_headers)),
+                                                 xheaders=self.trust_xheaders,
                                                  ssl_options=ssl_options)
 
         for port in random_ports(self.port, self.port_retries+1):
