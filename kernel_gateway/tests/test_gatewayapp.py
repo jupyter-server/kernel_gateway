@@ -67,7 +67,7 @@ class TestGatewayAppConfig(unittest.TestCase):
         self.assertEqual(app.keyfile, '/test/fake.key')
         self.assertEqual(app.certfile, '/test/fake.crt')
         self.assertEqual(app.client_ca, '/test/fake_ca.crt')
-        self.assertEqual(app.trust_xheaders, True)
+        self.assertEqual(app.trust_xheaders, 'true')
 
 class TestGatewayAppBase(AsyncHTTPTestCase, ExpectLog):
     """Base class for integration style tests using HTTP/Websockets against an
