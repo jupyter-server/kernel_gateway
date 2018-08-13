@@ -2,6 +2,21 @@
 
 See `git log` for a more detailed summary of changes.
 
+## 2.1
+
+### 2.1.0 (2018-08-13)
+
+* [PR-299](https://github.com/jupyter/kernel_gateway/pull/299): adds x_header configuration option for use behind proxies
+* [PR-294](https://github.com/jupyter/kernel_gateway/pull/294): Allow access from remote hosts (Notebook 5.6)
+* [PR-292](https://github.com/jupyter/kernel_gateway/pull/292): Update dependencies of Jupyter components
+* [PR-290](https://github.com/jupyter/kernel_gateway/pull/290): Include LICENSE file in wheels
+* [PR-285](https://github.com/jupyter/kernel_gateway/pull/285): Update Kernel Gateway test base class to be compatible with Tornado 5.0
+* [PR-284](https://github.com/jupyter/kernel_gateway/pull/284): Add reason argument to set_status() so that custom messages flow back to client
+* [PR-280](https://github.com/jupyter/kernel_gateway/pull/280): Add whitelist of environment variables to be inherited from gateway process by kernel
+* [PR-275](https://github.com/jupyter/kernel_gateway/pull/275): Fix broken links to notebook-http mode page in docs
+* [PR-272](https://github.com/jupyter/kernel_gateway/pull/272): Fix bug when getting kernel language in notebook-http mode
+* [PR-271](https://github.com/jupyter/kernel_gateway/pull/271): Fix IPerl notebooks running in notebook-http mode
+
 ## 2.0
 
 ### 2.0.2 (2017-11-10)
