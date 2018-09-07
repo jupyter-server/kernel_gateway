@@ -41,7 +41,7 @@ You may specify path parameters when registering an endpoint by prepending a `:`
 
 The `REQUEST` object currently contains the following properties:
 
-* `body` - The value of the body, see the [Body And Content Type](#Request Content-Type and Request Body Processing) section below
+* `body` - The value of the body, see the [Body And Content Type](#request-content-type-and-request-body-processing) section below
 * `args` - An object with keys representing query parameter names and their associated values. A query parameter name may be specified multiple times in a valid URL, and so each value is a sequence (e.g., list, array) of strings from the original URL.
 * `path` - An object of key-value pairs representing path parameters and their values.
 * `headers` - An object of key-value pairs where a key is a HTTP header name and a value is the HTTP header value. If there are multiple values are specified for a  header, the value will be an array.
