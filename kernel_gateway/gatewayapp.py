@@ -139,6 +139,15 @@ class KernelGatewayApp(JupyterApp):
     def allow_credentials_default(self):
         return os.getenv(self.allow_credentials_env, '')
 
+    allow_persistence_env = 'KG_ALLOW_PERSISTENCE'
+    allow_persistence = CBool(False, config=True,
+        help='Allows Kernel Gateway to ignore the SIGHUP signal. (KG_ALLOW_PERSISTENCE env var)'
+    )
+    
+    @default('allow_persistence')
+    def allow_persistence_default(self):
+        return os.getenv(self.allow_persistence_env, '')
+
     allow_headers_env = 'KG_ALLOW_HEADERS'
     allow_headers = Unicode(config=True,
         help='Sets the Access-Control-Allow-Headers header. (KG_ALLOW_HEADERS env var)'
@@ -469,7 +478,8 @@ class KernelGatewayApp(JupyterApp):
             # check_origin method used everywhere respects the value
             allow_origin=self.allow_origin,
             # Always allow remote access (has been limited to localhost >= notebook 5.6)
-            allow_remote_access=True
+            allow_remote_access=True,
+            allow_persistence=self.allow_persistence
         )
 
         # promote the current personality's "config" tagged traitlet values to webapp settings
@@ -545,6 +555,9 @@ class KernelGatewayApp(JupyterApp):
             's' if self.keyfile else '', self.ip, self.port
         ))
         self.io_loop = ioloop.IOLoop.current()
+
+        if self.allow_persistence:
+            signal.signal(signal.SIGHUP, signal.SIG_IGN)
 
         signal.signal(signal.SIGTERM, self._signal_stop)
 
