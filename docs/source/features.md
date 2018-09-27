@@ -2,7 +2,7 @@
 
 The Jupyter Kernel Gateway has the following features:
 
-* [`jupyter-websocket` mode](websocket-mode) which provides a 
+* [`jupyter-websocket` mode](websocket-mode.html) which provides a 
   Jupyter Notebook server-compatible API for requesting kernels and
   communicating with them using Websockets
 * [`notebook-http` mode](http-mode.html) which maps HTTP requests to
