@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.0 (2019-02-26)
+
+* [PR-314](https://github.com/jupyter/kernel_gateway/pull/314): Support serving kernelspec resources
+* [PR-307](https://github.com/jupyter/kernel_gateway/pull/307): features.md: Fix a link typo
+* [PR-304](https://github.com/jupyter/kernel_gateway/pull/304): Add ability for Kernel Gateway to ignore SIGHUP signal
+* [PR-303](https://github.com/jupyter/kernel_gateway/pull/303): Fixed the link to section
+
 ## 2.1.0 (2018-08-13)
 
 * [PR-299](https://github.com/jupyter/kernel_gateway/pull/299): adds x_header configuration option for use behind proxies
