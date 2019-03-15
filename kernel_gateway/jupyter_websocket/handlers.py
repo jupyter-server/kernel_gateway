@@ -2,7 +2,7 @@
 # Distributed under the terms of the Modified BSD License.
 """Tornado handlers for kernel specs."""
 
-from tornado import web
+from tornado import gen, web
 from ..mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
 import os
 
@@ -22,12 +22,14 @@ class BaseSpecHandler(CORSMixin, web.StaticFileHandler):
         """
         web.StaticFileHandler.initialize(self, path=os.path.dirname(__file__))
 
+    @gen.coroutine
     def get(self):
         """Handler for a get on a specific handler
         """
         resource_name, content_type = self.get_resource_metadata()
         self.set_header('Content-Type', content_type)
-        return web.StaticFileHandler.get(self, resource_name)
+        res = web.StaticFileHandler.get(self, resource_name)
+        yield gen.maybe_future(res)
 
     def options(self, **kwargs):
         """Method for properly handling CORS pre-flight"""

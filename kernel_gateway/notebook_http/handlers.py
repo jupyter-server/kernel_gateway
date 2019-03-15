@@ -260,5 +260,7 @@ class NotebookDownloadHandler(TokenAuthorizationMixin,
         self.dirname, self.filename = os.path.split(path)
         super(NotebookDownloadHandler, self).initialize(self.dirname)
 
+    @gen.coroutine
     def get(self, include_body=True):
-        super(NotebookDownloadHandler, self).get(self.filename, include_body)
+        res = super(NotebookDownloadHandler, self).get(self.filename, include_body)
+        yield gen.maybe_future(res)
