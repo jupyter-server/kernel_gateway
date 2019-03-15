@@ -2,6 +2,21 @@
 
 See `git log` for a more detailed summary of changes.
 
+## 2.3
+
+### 2.3.0 (2019-03-15)
+
+* [PR-315](https://github.com/jupyter/kernel_gateway/pull/315): Call tornado StaticFileHandler.get() as a coroutine
+
+## 2.2
+
+### 2.2.0 (2019-02-26)
+
+* [PR-314](https://github.com/jupyter/kernel_gateway/pull/314): Support serving kernelspec resources
+* [PR-307](https://github.com/jupyter/kernel_gateway/pull/307): features.md: Fix a link typo
+* [PR-304](https://github.com/jupyter/kernel_gateway/pull/304): Add ability for Kernel Gateway to ignore SIGHUP signal
+* [PR-303](https://github.com/jupyter/kernel_gateway/pull/303): Fixed the link to section
+
 ## 2.1
 
 ### 2.1.0 (2018-08-13)

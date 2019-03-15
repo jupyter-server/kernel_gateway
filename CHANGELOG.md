@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.3.0 (2019-03-15)
+
+* [PR-315](https://github.com/jupyter/kernel_gateway/pull/315): Call tornado StaticFileHandler.get() as a coroutine
+
 ## 2.2.0 (2019-02-26)
 
 * [PR-314](https://github.com/jupyter/kernel_gateway/pull/314): Support serving kernelspec resources
