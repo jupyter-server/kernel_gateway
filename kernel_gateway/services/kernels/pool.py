@@ -6,9 +6,10 @@ from jupyter_client.session import Session
 
 from tornado.locks import Semaphore
 from tornado import gen
+from traitlets.config.configurable import LoggingConfigurable
 
 
-class KernelPool(object):
+class KernelPool(LoggingConfigurable):
     """Spawns a pool of kernels.
 
     The kernel pool is responsible for clean up and shutdown of individual
@@ -119,6 +120,10 @@ class ManagedKernelPool(KernelPool):
         msg_list : list
             List of 0mq messages
         """
+        if not kernel_id in self.on_recv_funcs:
+            self.log.warning(
+                "Could not find callback for kernel_id: {}".format(kernel_id))
+            return
         idents, msg_list = session.feed_identities(msg_list)
         msg = session.deserialize(msg_list)
         self.on_recv_funcs[kernel_id](msg)
