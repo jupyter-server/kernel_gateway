@@ -1,8 +1,8 @@
 # Jupyter Kernel Gateway
 
 [![Google Group](https://img.shields.io/badge/-Google%20Group-lightgrey.svg)](https://groups.google.com/forum/#!forum/jupyter) 
-[![PyPI version](https://badge.fury.io/py/jupyter_kernel_gateway.svg)](https://badge.fury.io/py/jupyter_kernel_gateway) 
-[![Build Status](https://travis-ci.org/jupyter-incubator/dashboards.svg?branch=master)](https://travis-ci.org/jupyter/kernel_gateway)
+[![PyPI version](https://badge.fury.io/py/jupyter_kernel_gateway.svg)](https://badge.fury.io/py/jupyter_kernel_gateway)
+[![Build Status](https://travis-ci.org/jupyter/kernel_gateway.svg?branch=master)](https://travis-ci.org/jupyter/kernel_gateway)
 [![Documentation Status](http://readthedocs.org/projects/jupyter-kernel-gateway/badge/?version=latest)](https://jupyter-kernel-gateway.readthedocs.io/en/latest/?badge=latest)
 
 ## Overview
