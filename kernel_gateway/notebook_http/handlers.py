@@ -5,6 +5,7 @@
 import os
 import json
 import tornado.web
+from notebook.utils import maybe_future
 from tornado.log import access_log
 from .request_utils import (parse_body, parse_args, format_request,
     headers_to_dict, parameterize_path)
@@ -263,4 +264,4 @@ class NotebookDownloadHandler(TokenAuthorizationMixin,
     @gen.coroutine
     def get(self, include_body=True):
         res = super(NotebookDownloadHandler, self).get(self.filename, include_body)
-        yield gen.maybe_future(res)
+        yield maybe_future(res)
