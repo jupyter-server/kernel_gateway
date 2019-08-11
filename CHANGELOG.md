@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.0 (2019-08-11)
+
+* [PR-323](https://github.com/jupyter/kernel_gateway/pull/323): Update handler not use deprecated maybe_future call
+* [PR-322](https://github.com/jupyter/kernel_gateway/pull/322): Update handler compatibility with tornado/pyzmq updates
+* [PR-321](https://github.com/jupyter/kernel_gateway/pull/321): Allow Notebook 6.x dependencies
+* [PR-317](https://github.com/jupyter/kernel_gateway/pull/317): Better error toleration during server initialization
+
 ## 2.3.0 (2019-03-15)
 
 * [PR-315](https://github.com/jupyter/kernel_gateway/pull/315): Call tornado StaticFileHandler.get() as a coroutine
