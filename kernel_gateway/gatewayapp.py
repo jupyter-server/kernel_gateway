@@ -6,6 +6,7 @@ import errno
 import importlib
 import logging
 import os
+import sys
 import signal
 import socket
 from distutils.util import strtobool
@@ -546,7 +547,8 @@ class KernelGatewayApp(JupyterApp):
         ))
         self.io_loop = ioloop.IOLoop.current()
 
-        signal.signal(signal.SIGHUP, signal.SIG_IGN)
+        if sys.platform != 'win32':
+            signal.signal(signal.SIGHUP, signal.SIG_IGN)
 
         signal.signal(signal.SIGTERM, self._signal_stop)
 
