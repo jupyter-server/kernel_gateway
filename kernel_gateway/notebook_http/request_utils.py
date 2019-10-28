@@ -65,7 +65,7 @@ def parse_body(request):
     """
     content_type = TEXT_PLAIN
     body = request.body
-    body = '' if body is b'' or body is None else body.decode(encoding='UTF-8')
+    body = body.decode(encoding='UTF-8') if body else ''
     if 'Content-Type' in request.headers:
         content_type = request.headers['Content-Type']
     return_body = body
