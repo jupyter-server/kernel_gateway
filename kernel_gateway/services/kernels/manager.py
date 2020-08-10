@@ -5,6 +5,7 @@
 from functools import partial
 from tornado import gen, ioloop
 from notebook.services.kernels.kernelmanager import MappingKernelManager
+from notebook.utils import maybe_future
 from jupyter_client.ioloop import IOLoopKernelManager
 
 class SeedingMappingKernelManager(MappingKernelManager):
@@ -78,7 +79,7 @@ class SeedingMappingKernelManager(MappingKernelManager):
         """
         if self.parent.force_kernel_name:
             kwargs['kernel_name'] = self.parent.force_kernel_name
-        kernel_id = yield gen.maybe_future(super(SeedingMappingKernelManager, self).start_kernel(*args, **kwargs))
+        kernel_id = yield maybe_future(super(SeedingMappingKernelManager, self).start_kernel(*args, **kwargs))
 
         if kernel_id and self.seed_source is not None:
             # Only run source if the kernel spec matches the notebook kernel spec

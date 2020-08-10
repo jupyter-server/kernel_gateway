@@ -3,6 +3,7 @@
 """Session manager that keeps all its metadata in memory."""
 
 import uuid
+from notebook.utils import maybe_future
 from tornado import web, gen
 from traitlets.config.configurable import LoggingConfigurable
 from ipython_genutils.py3compat import unicode_type
@@ -71,10 +72,8 @@ class SessionManager(LoggingConfigurable):
         """
         session_id = self.new_session_id()
         # allow nbm to specify kernels cwd
-        kernel_id = yield gen.maybe_future(self.kernel_manager.start_kernel(path=path,
-                                                                            kernel_name=kernel_name))
-        raise gen.Return(self.save_session(session_id, path=path,
-                                           kernel_id=kernel_id))
+        kernel_id = yield maybe_future(self.kernel_manager.start_kernel(path=path, kernel_name=kernel_name))
+        raise gen.Return(self.save_session(session_id, path=path, kernel_id=kernel_id))
 
     def save_session(self, session_id, path=None, kernel_id=None, *args, **kwargs):
         """Saves the metadata for the session with the given `session_id`.
