@@ -43,7 +43,7 @@ class TestGatewayAppConfig(unittest.TestCase):
         os.environ['KG_KEYFILE'] = '/test/fake.key'
         os.environ['KG_CERTFILE'] = '/test/fake.crt'
         os.environ['KG_CLIENT_CA'] = '/test/fake_ca.crt'
-        os.environ['KG_SSL_VERSION'] = '5'
+        os.environ['KG_SSL_VERSION'] = '3'
         os.environ['KG_TRUST_XHEADERS'] = 'false'
 
 
@@ -68,7 +68,7 @@ class TestGatewayAppConfig(unittest.TestCase):
         self.assertEqual(app.keyfile, '/test/fake.key')
         self.assertEqual(app.certfile, '/test/fake.crt')
         self.assertEqual(app.client_ca, '/test/fake_ca.crt')
-        self.assertEqual(app.ssl_version, 5)
+        self.assertEqual(app.ssl_version, 3)
         self.assertEqual(app.trust_xheaders, False)
 
     def test_trust_xheaders(self):

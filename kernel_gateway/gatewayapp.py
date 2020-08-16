@@ -302,12 +302,13 @@ class KernelGatewayApp(JupyterApp):
 
     ssl_version_env = 'KG_SSL_VERSION'
     ssl_version_default_value = ssl.PROTOCOL_TLSv1_2
-    ssl_version = Integer(ssl_version_default_value, config=True, allow_none=True,
+    ssl_version = Integer(None, config=True, allow_none=True,
                         help="""Sets the SSL version to use for the web socket connection. (KG_SSL_VERSION env var)""")
     
     @default('ssl_version')
     def ssl_version_default(self):
-        return int(os.getenv(self.ssl_version_env, self.ssl_version_default_value))
+        ssl_from_env = os.getenv(self.ssl_version_env)
+        return self.ssl_version_default_value if ssl_from_env is None else int(ssl_from_env)
 
     kernel_spec_manager = Instance(KernelSpecManager, allow_none=True)
 
@@ -505,14 +506,13 @@ class KernelGatewayApp(JupyterApp):
             ssl_options['keyfile'] = self.keyfile
         if self.client_ca:
             ssl_options['ca_certs'] = self.client_ca
-        if self.ssl_version:
+        if self.certfile and self.ssl_version:
             ssl_options['ssl_version'] = self.ssl_version
         if not ssl_options:
             # None indicates no SSL config
             ssl_options = None
         else:
-            # Disable SSLv3 by default, since its use is discouraged.
-            ssl_options.setdefault('ssl_version', ssl.PROTOCOL_TLSv1)
+            ssl_options.setdefault('ssl_version', self.ssl_version_default_value)
             if ssl_options.get('ca_certs', False):
                 ssl_options.setdefault('cert_reqs', ssl.CERT_REQUIRED)
 
