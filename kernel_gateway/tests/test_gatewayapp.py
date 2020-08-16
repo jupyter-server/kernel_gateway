@@ -79,7 +79,11 @@ class TestGatewayAppConfig(unittest.TestCase):
         app = KernelGatewayApp()
         self.assertEqual(app.trust_xheaders, True)
 
-
+    def test_ssl_options(self):
+        app = KernelGatewayApp()
+        os.environ['KG_CERTFILE'] = '/test/fake.crt'
+        ssl_options = app._build_ssl_options()
+        self.assertEqual(ssl_options['ssl_version'], 5)
 
 class TestGatewayAppBase(AsyncHTTPTestCase, ExpectLog):
     """Base class for integration style tests using HTTP/Websockets against an
