@@ -308,7 +308,7 @@ class KernelGatewayApp(JupyterApp):
     @default('ssl_version')
     def ssl_version_default(self):
         ssl_from_env = os.getenv(self.ssl_version_env)
-        return self.ssl_version_default_value if ssl_from_env is None else int(ssl_from_env)
+        return ssl_from_env if ssl_from_env is None else int(ssl_from_env)
 
     kernel_spec_manager = Instance(KernelSpecManager, allow_none=True)
 
@@ -506,7 +506,7 @@ class KernelGatewayApp(JupyterApp):
             ssl_options['keyfile'] = self.keyfile
         if self.client_ca:
             ssl_options['ca_certs'] = self.client_ca
-        if self.certfile and self.ssl_version:
+        if self.ssl_version:
             ssl_options['ssl_version'] = self.ssl_version
         if not ssl_options:
             # None indicates no SSL config
