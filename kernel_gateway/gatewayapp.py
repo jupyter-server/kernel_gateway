@@ -9,6 +9,7 @@ import os
 import sys
 import signal
 import socket
+import ssl
 from distutils.util import strtobool
 
 import nbformat
@@ -52,7 +53,8 @@ aliases.update({
     'seed_uri': 'KernelGatewayApp.seed_uri',
     'keyfile': 'KernelGatewayApp.keyfile',
     'certfile': 'KernelGatewayApp.certfile',
-    'client-ca': 'KernelGatewayApp.client_ca'
+    'client-ca': 'KernelGatewayApp.client_ca',
+    'ssl_version': 'KernelGatewayApp.ssl_version'
 })
 
 
@@ -298,6 +300,16 @@ class KernelGatewayApp(JupyterApp):
     def client_ca_default(self):
         return os.getenv(self.client_ca_env)
 
+    ssl_version_env = 'KG_SSL_VERSION'
+    ssl_version_default_value = ssl.PROTOCOL_TLSv1_2
+    ssl_version = Integer(None, config=True, allow_none=True,
+                        help="""Sets the SSL version to use for the web socket connection. (KG_SSL_VERSION env var)""")
+    
+    @default('ssl_version')
+    def ssl_version_default(self):
+        ssl_from_env = os.getenv(self.ssl_version_env)
+        return ssl_from_env if ssl_from_env is None else int(ssl_from_env)
+
     kernel_spec_manager = Instance(KernelSpecManager, allow_none=True)
 
     kernel_spec_manager_class = Type(
@@ -494,14 +506,13 @@ class KernelGatewayApp(JupyterApp):
             ssl_options['keyfile'] = self.keyfile
         if self.client_ca:
             ssl_options['ca_certs'] = self.client_ca
+        if self.ssl_version:
+            ssl_options['ssl_version'] = self.ssl_version
         if not ssl_options:
             # None indicates no SSL config
             ssl_options = None
         else:
-            # SSL may be missing, so only import it if it's to be used
-            import ssl
-            # Disable SSLv3 by default, since its use is discouraged.
-            ssl_options.setdefault('ssl_version', ssl.PROTOCOL_TLSv1)
+            ssl_options.setdefault('ssl_version', self.ssl_version_default_value)
             if ssl_options.get('ca_certs', False):
                 ssl_options.setdefault('cert_reqs', ssl.CERT_REQUIRED)
 

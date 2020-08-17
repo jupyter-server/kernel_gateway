@@ -43,6 +43,7 @@ class TestGatewayAppConfig(unittest.TestCase):
         os.environ['KG_KEYFILE'] = '/test/fake.key'
         os.environ['KG_CERTFILE'] = '/test/fake.crt'
         os.environ['KG_CLIENT_CA'] = '/test/fake_ca.crt'
+        os.environ['KG_SSL_VERSION'] = '3'
         os.environ['KG_TRUST_XHEADERS'] = 'false'
 
 
@@ -67,6 +68,7 @@ class TestGatewayAppConfig(unittest.TestCase):
         self.assertEqual(app.keyfile, '/test/fake.key')
         self.assertEqual(app.certfile, '/test/fake.crt')
         self.assertEqual(app.client_ca, '/test/fake_ca.crt')
+        self.assertEqual(app.ssl_version, 3)
         self.assertEqual(app.trust_xheaders, False)
 
     def test_trust_xheaders(self):
@@ -77,7 +79,14 @@ class TestGatewayAppConfig(unittest.TestCase):
         app = KernelGatewayApp()
         self.assertEqual(app.trust_xheaders, True)
 
-
+    def test_ssl_options(self):
+        app = KernelGatewayApp()
+        ssl_options = app._build_ssl_options()
+        self.assertIsNone(ssl_options)
+        app = KernelGatewayApp()
+        os.environ['KG_CERTFILE'] = '/test/fake.crt'
+        ssl_options = app._build_ssl_options()
+        self.assertEqual(ssl_options['ssl_version'], 5)
 
 class TestGatewayAppBase(AsyncHTTPTestCase, ExpectLog):
     """Base class for integration style tests using HTTP/Websockets against an
