@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.4.3 (2020-08-18)
+
+* [PR-340](https://github.com/jupyter/kernel_gateway/pull/340) enable ssl_version as a JKG config option
+
+## 2.4.2 (2020-08-10)
+
+* [PR-338](https://github.com/jupyter/kernel_gateway/pull/338) Use appropriate maybe-future to handle asyncio futures
+
+## 2.4.1 (2020-06-05)
+
+* [PR-327](https://github.com/jupyter/kernel_gateway/pull/327) Use ==/!= to compare str, bytes, and int literals
+* [PR-325](https://github.com/jupyter/kernel_gateway/pull/325) fix: module 'signal' has no attribute 'SIGHUP' on Windows
+
 ## 2.4.0 (2019-08-11)
 
 * [PR-323](https://github.com/jupyter/kernel_gateway/pull/323): Update handler not use deprecated maybe_future call
