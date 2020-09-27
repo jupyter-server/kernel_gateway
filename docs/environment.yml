@@ -6,8 +6,8 @@ dependencies:
   - python=3.7
   - sphinx
   - sphinx_rtd_theme
-  - recommonmark
   - pillow
   - pip
   - pip:
+      - myst_parser
       - readthedocs-sphinx-ext
