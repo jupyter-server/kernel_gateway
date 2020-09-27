@@ -4,6 +4,7 @@
 
 import re
 import sys
+from traitlets import Unicode
 from traitlets.config.configurable import LoggingConfigurable
 
 def first_path_param_index(endpoint):
@@ -63,8 +64,8 @@ class APICellParser(LoggingConfigurable):
     api_response_indicator : str
         Regex pattern for API response metadata annotations
     """
-    api_indicator = r'{}\s+(GET|PUT|POST|DELETE)\s+(\/.*)+'
-    api_response_indicator = r'{}\s+ResponseInfo\s+(GET|PUT|POST|DELETE)\s+(\/.*)+'
+    api_indicator = Unicode(default_value=r'{}\s+(GET|PUT|POST|DELETE)\s+(\/.*)+')
+    api_response_indicator = Unicode(default_value=r'{}\s+ResponseInfo\s+(GET|PUT|POST|DELETE)\s+(\/.*)+')
 
     def __init__(self, comment_prefix, *args, **kwargs):
         super(APICellParser, self).__init__(*args, **kwargs)
