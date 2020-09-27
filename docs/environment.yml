@@ -1,8 +1,13 @@
 name: kernel_gateway_docs
+channels:
+  - defaults
+  - conda-forge
 dependencies:
-- python=3.7
-- sphinx_rtd_theme
-- sphinx
-- pip
-- pip:
-    - recommonmark
+  - python=3.7
+  - sphinx
+  - sphinx_rtd_theme
+  - recommonmark
+  - pillow
+  - pip
+  - pip:
+      - readthedocs-sphinx-ext
