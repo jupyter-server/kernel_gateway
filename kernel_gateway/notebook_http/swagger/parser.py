@@ -5,7 +5,7 @@
 import json
 import re
 from kernel_gateway.notebook_http.cell.parser import first_path_param_index, APICellParser
-from traitlets import default
+from traitlets import List, Unicode
 from traitlets.config.configurable import LoggingConfigurable
 
 def _swaggerlet_from_markdown(cell_source):
@@ -62,9 +62,9 @@ class SwaggerCellParser(LoggingConfigurable):
     operation_response_indicator : str
         Regex pattern for API response metadata annotations
     """
-    operation_indicator = r'{}\s*operationId:\s*(.*)'
-    operation_response_indicator = r'{}\s*ResponseInfo\s+operationId:\s*(.*)'
-    notebook_cells = []
+    operation_indicator = Unicode(default_value=r'{}\s*operationId:\s*(.*)')
+    operation_response_indicator = Unicode(default_value=r'{}\s*ResponseInfo\s+operationId:\s*(.*)')
+    notebook_cells = List()
 
     def __init__(self, comment_prefix, *args, **kwargs):
         super(SwaggerCellParser, self).__init__(*args, **kwargs)
