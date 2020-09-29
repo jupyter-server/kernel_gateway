@@ -36,5 +36,4 @@ def create_personality(self, parent):
     return TemplatePersonality(parent=parent)
 ```
 
-Provided personalities include
-  [kernel_gateway.jupyter_websocket](_modules/kernel_gateway/jupyter_websocket.html) and   [kernel_gateway.notebook_http](_modules/kernel_gateway/notebook_http.html).
+Provided personalities include [kernel_gateway.jupyter_websocket](websocket-mode.md) and [kernel_gateway.notebook_http](http-mode.md).
