@@ -1,4 +1,4 @@
-## Features
+# Features
 
 The Jupyter Kernel Gateway has the following features:
 

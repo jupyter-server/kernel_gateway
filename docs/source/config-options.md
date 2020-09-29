@@ -1,4 +1,4 @@
-## Configuration options
+# Configuration options
 
 The kernel gateway adheres to the [Jupyter common configuration approach](https://jupyter.readthedocs.io/en/latest/projects/config.html). You can configure an instance of the kernel gateway using:
 

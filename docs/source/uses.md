@@ -1,4 +1,4 @@
-## Use Cases
+# Use Cases
 
 The Jupyter Kernel Gateway makes possible the following novel uses of kernels:
 
