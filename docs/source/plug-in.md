@@ -1,4 +1,4 @@
-## Developing New Modes
+# Developing New Modes
 
 The `KernelGatewayApp.api` can be set to the name of any module in the Python path supplying a personality. This allows for alternate kernel communications mechanisms.
 

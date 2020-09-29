@@ -1,4 +1,4 @@
-## `notebook-http` Mode
+# `notebook-http` Mode
 
 The `KernelGatewayApp.api` command line argument can be set to `kernel_gateway.notebook_http`. This mode, or *personality*, has the kernel gateway expose annotated cells in the `KernelGatewayApp.seed_uri` notebook as HTTP resources.
 
@@ -21,7 +21,7 @@ print("I'm cell #1")
 print("I'm cell #2")
 ```
 
-### Getting the Request Data
+## Getting the Request Data
 
 Before the gateway invokes an annotated cell, it sets the value of a global notebook variable named `REQUEST` to a JSON string containing information about the request. You may parse this string to access the request properties.
 
@@ -46,7 +46,7 @@ The `REQUEST` object currently contains the following properties:
 * `path` - An object of key-value pairs representing path parameters and their values.
 * `headers` - An object of key-value pairs where a key is a HTTP header name and a value is the HTTP header value. If there are multiple values are specified for a  header, the value will be an array.
 
-#### Request Content-Type and Request Body Processing
+### Request Content-Type and Request Body Processing
 
 If the HTTP request to the kernel gateway has a `Content-Type` header the value of `REQUEST.body` may change. Below is the list of outcomes for various mime-types:
 
@@ -55,7 +55,7 @@ If the HTTP request to the kernel gateway has a `Content-Type` header the value 
 * `text/plain` -  The `REQUEST.body` will be the string value of the body
 * All other types will be sent as strings
 
-### Setting the Response Body
+## Setting the Response Body
 
 The response from an annotated cell may be set in one of two ways:
 
@@ -70,7 +70,7 @@ In both cases, the response defaults to status `200 OK` and `Content-Type: text/
 
 See the [api_intro.ipynb](https://github.com/jupyter/kernel_gateway/blob/master/etc/api_examples/api_intro.ipynb) notebook for basic request and response examples.
 
-### Setting the Response Status and Headers
+## Setting the Response Status and Headers
 
 Annotated cells may have an optional metadata companion cell that sets the HTTP response status and headers. Consider this Python cell that creates a person entry in a database table and returns the new row ID in a JSON object:
 
@@ -107,13 +107,13 @@ Content-Type: application/json
 
 See the [setting_response_metadata.ipynb](https://github.com/jupyter/kernel_gateway/blob/master/etc/api_examples/setting_response_metadata.ipynb) notebook for examples of setting response metadata.
 
-### Swagger Spec
+## Swagger Spec
 
 The resource `/_api/spec/swagger.json` is automatically generated from the notebook used to define the HTTP API. The response is a simple Swagger spec which can be used with the [Swagger editor](http://editor.swagger.io/#), a [Swagger ui](https://github.com/swagger-api/swagger-ui), or with any other Swagger-aware tool.
 
 Currently, every response is listed as having a status of `200 OK`.
 
-### Running
+## Running
 
 The minimum number of arguments needed to run in HTTP mode are `--KernelGatewayApp.api=kernel_gateway.notebook_http` and `--KernelGatewayApp.seed_uri=some/notebook/file.ipynb`.
 
