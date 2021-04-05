@@ -349,7 +349,7 @@ class KernelGatewayApp(JupyterApp):
         return importlib.import_module(module_name)
 
     def _load_notebook(self, uri):
-        """Loads a notebook from the local filesystem or HTTP URL.
+        """Loads a notebook from the local filesystem or HTTP(S) URL.
 
         Raises
         ------
@@ -363,9 +363,10 @@ class KernelGatewayApp(JupyterApp):
         """
         parts = urlparse(uri)
 
-        if parts.netloc == '' or parts.netloc == 'file':
+        if parts.scheme not in ('http', 'https'):
             # Local file
-            with open(parts.path) as nb_fh:
+            path = parts._replace(scheme='', netloc='').geturl()
+            with open(path) as nb_fh:
                 notebook = nbformat.read(nb_fh, 4)
         else:
             # Remote file
