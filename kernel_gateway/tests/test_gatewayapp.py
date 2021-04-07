@@ -2,17 +2,21 @@
 # Distributed under the terms of the Modified BSD License.
 """Tests for basic gateway app behavior."""
 
+
 import logging
-import unittest
+import nbformat
 import os
+import unittest
 from kernel_gateway.gatewayapp import KernelGatewayApp, ioloop
 from ..notebook_http.swagger.handlers import SwaggerSpecHandler
 from tornado.testing import AsyncHTTPTestCase, ExpectLog
 
 RESOURCES = os.path.join(os.path.dirname(__file__), 'resources')
 
+
 class TestGatewayAppConfig(unittest.TestCase):
     """Tests configuration of the gateway app."""
+
     def setUp(self):
         """Saves a copy of the environment."""
         self.environ = dict(os.environ)
@@ -45,7 +49,6 @@ class TestGatewayAppConfig(unittest.TestCase):
         os.environ['KG_CLIENT_CA'] = '/test/fake_ca.crt'
         os.environ['KG_SSL_VERSION'] = '3'
         os.environ['KG_TRUST_XHEADERS'] = 'false'
-
 
         app = KernelGatewayApp()
 
@@ -88,6 +91,17 @@ class TestGatewayAppConfig(unittest.TestCase):
         ssl_options = app._build_ssl_options()
         self.assertEqual(ssl_options['ssl_version'], 5)
 
+    def test_load_notebook_local(self):
+        nb_path = os.path.join(RESOURCES, 'weirdly?named#notebook.ipynb')
+        os.environ['KG_SEED_URI'] = nb_path
+        with open(nb_path) as nb_fh:
+            nb_contents = nbformat.read(nb_fh, 4)
+
+        app = KernelGatewayApp()
+        app.init_configurables()
+        self.assertEqual(app.seed_notebook, nb_contents)
+
+
 class TestGatewayAppBase(AsyncHTTPTestCase, ExpectLog):
     """Base class for integration style tests using HTTP/Websockets against an
     instance of the gateway app.
@@ -97,6 +111,7 @@ class TestGatewayAppBase(AsyncHTTPTestCase, ExpectLog):
     app : KernelGatewayApp
         Instance of the app
     """
+
     def tearDown(self):
         """Shuts down the app after test run."""
         if self.app:
