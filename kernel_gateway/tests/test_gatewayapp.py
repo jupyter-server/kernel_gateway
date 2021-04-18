@@ -92,7 +92,7 @@ class TestGatewayAppConfig(unittest.TestCase):
         self.assertEqual(ssl_options['ssl_version'], 5)
 
     def test_load_notebook_local(self):
-        nb_path = os.path.join(RESOURCES, 'weirdly?named#notebook.ipynb')
+        nb_path = os.path.join(RESOURCES, 'weirdly%20named#notebook.ipynb')
         os.environ['KG_SEED_URI'] = nb_path
         with open(nb_path) as nb_fh:
             nb_contents = nbformat.read(nb_fh, 4)
