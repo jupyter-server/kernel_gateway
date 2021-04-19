@@ -2,7 +2,7 @@
 
 [![Google Group](https://img.shields.io/badge/-Google%20Group-lightgrey.svg)](https://groups.google.com/forum/#!forum/jupyter) 
 [![PyPI version](https://badge.fury.io/py/jupyter_kernel_gateway.svg)](https://badge.fury.io/py/jupyter_kernel_gateway)
-[![Build Status](https://travis-ci.org/jupyter/kernel_gateway.svg?branch=master)](https://travis-ci.org/jupyter/kernel_gateway)
+[![Build Status](https://github.com/jupyter/kernel_gateway/workflows/Tests/badge.svg)](https://github.com/jupyter/kernel_gateway/actions?query=workflow%3ATests)
 [![Documentation Status](http://readthedocs.org/projects/jupyter-kernel-gateway/badge/?version=latest)](https://jupyter-kernel-gateway.readthedocs.io/en/latest/?badge=latest)
 
 ## Overview
@@ -42,7 +42,7 @@ documentation for a list of the Jupyter Kernel Gateway features.
 
 ## Installation
 
-Detailed installation instructions are located in the 
+Detailed installation instructions are located in the
 [Getting Started page](https://jupyter-kernel-gateway.readthedocs.io/en/latest/getting-started.html)
 of the project docs. Here's a quick start using `pip`:
 

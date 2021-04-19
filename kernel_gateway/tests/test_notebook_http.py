@@ -3,7 +3,6 @@
 """Tests for notebook-http mode."""
 
 import os
-import sys
 import json
 
 from .test_gatewayapp import TestGatewayAppBase, RESOURCES
@@ -18,7 +17,7 @@ class TestDefaults(TestGatewayAppBase):
         """
         self.app.api = 'kernel_gateway.notebook_http'
         self.app.seed_uri = os.path.join(RESOURCES,
-                                         'kernel_api{}.ipynb'.format(sys.version_info.major))
+                                         'kernel_api.ipynb')
 
     @gen_test
     def test_api_get_endpoint(self):
@@ -252,7 +251,7 @@ class TestPublicStatic(TestGatewayAppBase):
         """
         self.app.api = 'kernel_gateway.notebook_http'
         self.app.seed_uri = os.path.join(RESOURCES,
-                                         'kernel_api{}.ipynb'.format(sys.version_info.major))
+                                         'kernel_api.ipynb')
 
     def setup_configurables(self):
         """Configures the static path at the root of the resources/public folder."""
@@ -277,7 +276,7 @@ class TestSourceDownload(TestGatewayAppBase):
         """
         self.app.api = 'kernel_gateway.notebook_http'
         self.app.seed_uri = os.path.join(RESOURCES,
-                                         'kernel_api{}.ipynb'.format(sys.version_info.major))
+                                         'kernel_api.ipynb')
 
     def setup_configurables(self):
         self.app.personality.allow_notebook_download = True
@@ -300,7 +299,7 @@ class TestCustomResponse(TestGatewayAppBase):
         """
         self.app.api = 'kernel_gateway.notebook_http'
         self.app.seed_uri = os.path.join(RESOURCES,
-                                         'responses_{}.ipynb'.format(sys.version_info.major))
+                                         'responses.ipynb')
 
     @gen_test
     def test_setting_content_type(self):
@@ -349,7 +348,7 @@ class TestKernelPool(TestGatewayAppBase):
         self.app.prespawn_count = 3
         self.app.api = 'kernel_gateway.notebook_http'
         self.app.seed_uri = os.path.join(RESOURCES,
-                                         'kernel_api{}.ipynb'.format(sys.version_info.major))
+                                         'kernel_api.ipynb')
 
     @gen_test
     def test_should_cycle_through_kernels(self):
@@ -427,7 +426,7 @@ class TestSwaggerSpec(TestGatewayAppBase):
         """Sets a different notebook for testing the swagger generation."""
         self.app.api = 'kernel_gateway.notebook_http'
         self.app.seed_uri = os.path.join(RESOURCES,
-                                         'simple_api{}.ipynb'.format(sys.version_info.major))
+                                         'simple_api.ipynb')
 
     @gen_test
     def test_generation_of_swagger_spec(self):
@@ -437,7 +436,7 @@ class TestSwaggerSpec(TestGatewayAppBase):
         expected_response = {
             "info": {
                 "version": "0.0.0",
-                "title": "simple_api{}".format(sys.version_info.major)
+                "title": "simple_api"
             },
             "paths": {
                 "/name": {
@@ -465,7 +464,7 @@ class TestBaseURL(TestGatewayAppBase):
         self.app.base_url = '/fake/path'
         self.app.api = 'kernel_gateway.notebook_http'
         self.app.seed_uri = os.path.join(RESOURCES,
-                                         'kernel_api{}.ipynb'.format(sys.version_info.major))
+                                         'kernel_api.ipynb')
 
     def setup_configurables(self):
         self.app.personality.allow_notebook_download = True
@@ -512,7 +511,7 @@ class TestForceKernel(TestGatewayAppBase):
         """
         self.app.api = 'kernel_gateway.notebook_http'
         self.app.seed_uri = os.path.join(RESOURCES, 'unknown_kernel.ipynb')
-        self.app.force_kernel_name = 'python{}'.format(sys.version_info.major)
+        self.app.force_kernel_name = 'python3'
 
     @gen_test
     def test_force_kernel_spec(self):

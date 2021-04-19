@@ -60,14 +60,19 @@ containerized and scaled out using common technologies like
         'tornado>=4.2.0',
         'requests>=2.7,<3.0'
     ],
+    python_requires='>=3.6.1',
     classifiers=[
         'Intended Audience :: Developers',
         'Intended Audience :: System Administrators',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: BSD License',
+        'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 3'
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
     ],
     include_package_data=True,
 )

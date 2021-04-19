@@ -252,7 +252,7 @@ class TestDefaults(TestJupyterWebsocket):
         except Exception as ex:
             self.assertEqual(ex.code, 401)
         else:
-            self.assert_(False, 'no exception raised')
+            raise AssertionError('no exception raised')
 
         # Now request the websocket with the token
         ws_req = HTTPRequest(ws_url,
@@ -413,13 +413,13 @@ class TestDefaults(TestJupyterWebsocket):
         }))
 
         # Assert the reply comes back. Test will timeout if this hangs.
-        for _ in range(3):
+        for _ in range(10):
             msg = yield ws.read_message()
             msg = json_decode(msg)
             if(msg['msg_type'] == 'kernel_info_reply'):
                 break
         else:
-            self.assert_(False, 'never received kernel_info_reply')
+            raise AssertionError('never received kernel_info_reply')
         ws.close()
 
     @gen_test
@@ -593,8 +593,8 @@ class TestForceKernel(TestJupyterWebsocket):
     def setup_app(self):
         self.app.prespawn_count = 2
         self.app.seed_uri = os.path.join(RESOURCES,
-            'zen{}.ipynb'.format(sys.version_info.major))
-        self.app.force_kernel_name = 'python{}'.format(sys.version_info.major)
+            'zen.ipynb')
+        self.app.force_kernel_name = 'python3'
 
     @gen_test
     def test_force_kernel_name(self):
@@ -708,7 +708,7 @@ class TestSeedURI(TestJupyterWebsocket):
     notebook."""
     def setup_app(self):
         self.app.seed_uri = os.path.join(RESOURCES,
-            'zen{}.ipynb'.format(sys.version_info.major))
+            'zen.ipynb')
 
     @gen_test
     def test_seed(self):
@@ -732,7 +732,7 @@ class TestRemoteSeedURI(TestSeedURI):
     """
     def setup_app(self):
         """Sets the seed notebook to a remote notebook."""
-        self.app.seed_uri = 'https://gist.githubusercontent.com/parente/ccd36bd7db2f617d58ce/raw/zen{}.ipynb'.format(sys.version_info.major)
+        self.app.seed_uri = 'https://gist.githubusercontent.com/parente/ccd36bd7db2f617d58ce/raw/zen3.ipynb'
 
 
 class TestBadSeedURI(TestJupyterWebsocket):
@@ -742,7 +742,7 @@ class TestBadSeedURI(TestJupyterWebsocket):
     def setup_app(self):
         """Sets the seed notebook to one of the test resources."""
         self.app.seed_uri = os.path.join(RESOURCES,
-            'failing_code{}.ipynb'.format(sys.version_info.major))
+            'failing_code.ipynb')
 
     @gen_test
     def test_seed_error(self):
@@ -751,6 +751,7 @@ class TestBadSeedURI(TestJupyterWebsocket):
         has an execution error.
         """
         self.app.web_app.settings['kg_list_kernels'] = True
+
         # Request a kernel
         response = yield self.http_client.fetch(
             self.get_url('/api/kernels'),
@@ -767,6 +768,16 @@ class TestBadSeedURI(TestJupyterWebsocket):
         )
         kernels = json_decode(response.body)
         self.assertEqual(len(kernels), 0)
+
+    def test_seed_kernel_failing(self):
+        """
+        Server should error because seed notebook requires a kernel that is not
+        installed.
+        """
+        app = KernelGatewayApp()
+        app.prespawn_count = 1
+        app.seed_uri = os.path.join(RESOURCES, 'failing_code.ipynb')
+        self.assertRaises(RuntimeError, app.init_configurables)
 
     def test_seed_kernel_not_available(self):
         """
@@ -786,14 +797,14 @@ class TestKernelLanguageSupport(TestJupyterWebsocket):
         """
         self.app.prespawn_count = 1
         self.app.seed_uri = os.path.join(RESOURCES,
-            'zen{}.ipynb'.format(sys.version_info.major))
+            'zen.ipynb')
 
     @coroutine
     def spawn_kernel(self):
         """Override the base class spawn utility method to set the Python kernel
         version number when spawning.
         """
-        kernel_body = json.dumps({"name":"python{}".format(sys.version_info.major)})
+        kernel_body = json.dumps({"name":"python3"})
         ws = yield super(TestKernelLanguageSupport, self).spawn_kernel(kernel_body)
         raise Return(ws)
 
@@ -801,11 +812,7 @@ class TestKernelLanguageSupport(TestJupyterWebsocket):
     def test_seed_language_support(self):
         """Kernel should have variables preseeded from notebook."""
         ws = yield self.spawn_kernel()
-
-        if sys.version_info.major == 2:
-            code = 'print this.s'
-        else:
-            code = 'print(this.s)'
+        code = 'print(this.s)'
 
         # Print the encoded "zen of python" string, the kernel should have
         # it imported
