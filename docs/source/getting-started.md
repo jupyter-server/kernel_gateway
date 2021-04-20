@@ -42,7 +42,7 @@ req = json.loads(REQUEST)
 res = dict(data=np.random.randn(5, 4).tolist(), request=req)
 print(json.dumps(res))
 ```
-and then run the gateway and point specifically at that notebook, we should see some information printed in the logs:
+and then run the gateway in [http-mode](http-mode.md) and point specifically at that notebook, we should see some information printed in the logs:
 ```bash
 jupyter kernelgateway --KernelGatewayApp.api=kernel_gateway.notebook_http --KernelGatewayApp.seed_uri=./my_example.ipynb --port=10100
 [KernelGatewayApp] Kernel started: 12ac2daa-c62a-47e4-964a-336734557656
@@ -60,6 +60,19 @@ and the swagger spec:
 curl http://127.0.0.1:10100/_api/spec/swagger.json
 {"swagger": "2.0", "paths": {"/hello/world": {"get": {"responses": {"200": {"description": "Success"}}}}}, "info": {"version": "0.0.0", "title": "my_example"}}
 ```
+
+You can also run in the default [websocket-mode](websocket-mode.md):
+```bash
+jupyter kernelgateway --KernelGatewayApp.api=kernel_gateway.jupyter_websocket --port=10100
+[KernelGatewayApp] Jupyter Kernel Gateway at http://127.0.0.1:10100
+```
+and again notice the output in the logs. This time we didn't point to a specific notebook but you can test against the kernelspecs endpoint or the swagger endpoint:
+```bash
+curl http://127.0.0.1:10100/api/kernelspecs
+{"default": "python3", "kernelspecs": {"python38364bit38conda21f48c44b19044fba5c7aa244072a647": {"name": "python38364bit38conda21f48c44b19044fba5c7aa244072a647", ...
+```
+
+For more details running-mode sections [websocket-mode](websocket-mode.md) and [http-mode](http-mode.md).
 
 **NOTE: Watch out for notebooks that run things on import as this might cause the gateway server to crash immediately and the log messages are not always obvious.**
 
