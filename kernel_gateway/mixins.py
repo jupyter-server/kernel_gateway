@@ -37,7 +37,7 @@ class CORSMixin(object):
         # Don't set CSP: we're not serving frontend media types only JSON
         self.clear_header('Content-Security-Policy')
 
-    def options(self):
+    def options(self, *args, **kwargs):
         """Override the notebook implementation to return the headers
         configured in `set_default_headers instead of the hardcoded set
         supported by the handler base class in the notebook project.
