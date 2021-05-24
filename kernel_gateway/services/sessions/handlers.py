@@ -27,6 +27,23 @@ class SessionRootHandler(TokenAuthorizationMixin,
         else:
             super(SessionRootHandler, self).get()
 
+class SessionHandler(TokenAuthorizationMixin,
+                    CORSMixin,
+                    JSONErrorsMixin,
+                    notebook_handlers.SessionHandler):
+    """Extends the notebook session handler with token auth, CORS, and
+    JSON errors.
+    """
+    def set_default_headers(self):
+        self.set_header('Content-Type', 'application/json')
+        self.set_header('Access-Control-Allow-Origin', '*')
+        self.set_header('Access-Control-Allow-Headers', 'content-type')
+        self.set_header('Access-Control-Allow-Methods', 'DELETE')
+
+    def options(self, **kwargs):
+        """Method for properly handling CORS pre-flight"""
+        self.finish()
+
 default_handlers = []
 for path, cls in notebook_handlers.default_handlers:
     if cls.__name__ in globals():
