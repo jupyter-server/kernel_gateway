@@ -101,7 +101,7 @@ class SeedingMappingKernelManager(MappingKernelManager):
                     # executed
                     if self.parent.personality.should_seed_cell(code):
                         client.execute(code)
-                        msg = client.get_shell_msg(block=True)
+                        msg = client.get_shell_msg()
                         if msg['content']['status'] != 'ok':
                             # Shutdown the channels to remove any lingering ZMQ messages
                             client.stop_channels()
