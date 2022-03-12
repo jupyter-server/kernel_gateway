@@ -6,7 +6,7 @@ import uuid
 from notebook.utils import maybe_future
 from tornado import web, gen
 from traitlets.config.configurable import LoggingConfigurable
-from ipython_genutils.py3compat import unicode_type
+
 
 class SessionManager(LoggingConfigurable):
     """Simple implementation of the SessionManager interface that allows clients
@@ -48,7 +48,7 @@ class SessionManager(LoggingConfigurable):
 
     def new_session_id(self):
         """Creates a uuid for a new session."""
-        return unicode_type(uuid.uuid4())
+        return str(uuid.uuid4())
 
     @gen.coroutine
     def create_session(self, path=None, kernel_name=None, kernel_id=None, *args, **kwargs):
