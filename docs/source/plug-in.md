@@ -31,7 +31,7 @@ class TemplatePersonality(LoggingConfigurable):
         been specified."""
         pass
 
-def create_personality(self, parent):
+def create_personality(parent, log):
     """Put docstring here."""
     return TemplatePersonality(parent=parent)
 ```
