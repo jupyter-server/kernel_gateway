@@ -31,9 +31,9 @@ class TemplatePersonality(LoggingConfigurable):
         been specified."""
         pass
 
-def create_personality(self, parent):
+def create_personality(*args, **kwargs):
     """Put docstring here."""
-    return TemplatePersonality(parent=parent)
+    return TemplatePersonality(*args, **kwargs)
 ```
 
 Provided personalities include [kernel_gateway.jupyter_websocket](websocket-mode.md) and [kernel_gateway.notebook_http](http-mode.md).
