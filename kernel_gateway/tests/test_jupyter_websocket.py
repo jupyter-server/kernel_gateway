@@ -823,4 +823,3 @@ class TestKernelLanguageSupport(TestJupyterWebsocket):
         self.assertIn('Gur Mra bs Clguba', content['text'])
 
         ws.close()
-
