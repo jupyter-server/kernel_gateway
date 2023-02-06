@@ -32,7 +32,7 @@ ioloop.install()
 
 from tornado import httpserver
 from tornado import web
-from tornado.log import enable_pretty_logging
+from tornado.log import enable_pretty_logging, LogFormatter
 
 from notebook.notebookapp import random_ports
 from ._version import __version__
@@ -310,6 +310,15 @@ class KernelGatewayApp(JupyterApp):
         ssl_from_env = os.getenv(self.ssl_version_env)
         return ssl_from_env if ssl_from_env is None else int(ssl_from_env)
 
+    _log_formatter_cls = LogFormatter  # traitlet default is LevelFormatter
+
+    @default("log_format")
+    def _default_log_format(self) -> str:
+        """override default log format to include milliseconds"""
+        return (
+            "%(color)s[%(levelname)1.1s %(asctime)s.%(msecs).03d %(name)s]%(end_color)s %(message)s"
+        )
+
     kernel_spec_manager = Instance(KernelSpecManager, allow_none=True)
 
     kernel_spec_manager_class = Type(
@@ -556,8 +565,8 @@ class KernelGatewayApp(JupyterApp):
     def start(self):
         """Starts an IO loop for the application."""
         super(KernelGatewayApp, self).start()
-        self.log.info('Jupyter Kernel Gateway at http{}://{}:{}'.format(
-            's' if self.keyfile else '', self.ip, self.port
+        self.log.info('Jupyter Kernel Gateway {} is available at http{}://{}:{}'.format(
+            KernelGatewayApp.version, 's' if self.keyfile else '', self.ip, self.port
         ))
         self.io_loop = ioloop.IOLoop.current()
 
