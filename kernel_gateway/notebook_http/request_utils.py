@@ -25,6 +25,8 @@ def format_request(bundle, kernel_language=''):
     bundle = json.dumps(bundle)
     if kernel_language.lower() == 'perl':
         statement = "my $REQUEST = {}".format(bundle)
+    elif kernel_language.lower() == 'bash':
+        statement = "REQUEST={}".format(bundle)
     else:
         statement = "REQUEST = {}".format(bundle)
     return statement
