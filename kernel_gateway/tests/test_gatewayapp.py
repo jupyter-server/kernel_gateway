@@ -6,8 +6,11 @@
 import logging
 import nbformat
 import os
+from io import StringIO
 import unittest
+from unittest.mock import patch
 from kernel_gateway.gatewayapp import KernelGatewayApp, ioloop
+from kernel_gateway import __version__
 from ..notebook_http.swagger.handlers import SwaggerSpecHandler
 from tornado.testing import AsyncHTTPTestCase, ExpectLog
 
@@ -100,6 +103,15 @@ class TestGatewayAppConfig(unittest.TestCase):
         app = KernelGatewayApp()
         app.init_configurables()
         self.assertEqual(app.seed_notebook, nb_contents)
+
+    @patch('sys.stderr', new_callable=StringIO)
+    def test_start_banner(self, stderr):
+
+        app = KernelGatewayApp()
+        app.init_configurables()
+        app.start_app()
+        banner = stderr.getvalue()
+        self.assertIn(f"Jupyter Kernel Gateway {__version__}", banner)
 
 
 class TestGatewayAppBase(AsyncHTTPTestCase, ExpectLog):

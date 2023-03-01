@@ -162,3 +162,8 @@ class TestRequestUtils(unittest.TestCase):
         test_request = ('''{"body": "", "headers": {}, "args": {}, "path": {}}''')
         request_code = format_request(test_request, 'perl')
         self.assertTrue(request_code.startswith("my $REQUEST"), 'Call format_request with a kernel language "perl" was not formatted correctly')
+
+    def test_format_request_with_a_kernel_language_bash(self):
+        test_request = ('''{"body": "", "headers": {}, "args": {}, "path": {}}''')
+        request_code = format_request(test_request, 'bash')
+        self.assertTrue(request_code.startswith("REQUEST=\"{"), 'Call format_request with a kernel language "bash" was not formatted correctly')
