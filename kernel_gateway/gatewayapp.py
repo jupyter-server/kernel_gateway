@@ -562,12 +562,18 @@ class KernelGatewayApp(JupyterApp):
                               'no available port could be found.')
             self.exit(1)
 
-    def start(self):
-        """Starts an IO loop for the application."""
+    def start_app(self):
+        """Starts the application (with ioloop to follow). """
         super(KernelGatewayApp, self).start()
         self.log.info('Jupyter Kernel Gateway {} is available at http{}://{}:{}'.format(
             KernelGatewayApp.version, 's' if self.keyfile else '', self.ip, self.port
         ))
+
+    def start(self):
+        """Starts an IO loop for the application."""
+
+        self.start_app()
+
         self.io_loop = ioloop.IOLoop.current()
 
         if sys.platform != 'win32':
