@@ -36,9 +36,9 @@ class SessionHandler(TokenAuthorizationMixin,
     """
     def set_default_headers(self):
         self.set_header('Content-Type', 'application/json')
-        self.set_header('Access-Control-Allow-Origin', '*')
-        self.set_header('Access-Control-Allow-Headers', 'content-type')
-        self.set_header('Access-Control-Allow-Methods', 'DELETE')
+        self.set_header('Access-Control-Allow-Origin', self.settings['kg_allow_origin'])
+        self.set_header('Access-Control-Allow-Headers', self.settings['kg_allow_headers'])
+        self.set_header('Access-Control-Allow-Methods', self.settings['kg_allow_methods'])
 
     def options(self, **kwargs):
         """Method for properly handling CORS pre-flight"""
