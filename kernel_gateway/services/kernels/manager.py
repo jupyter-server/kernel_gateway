@@ -2,21 +2,24 @@
 # Distributed under the terms of the Modified BSD License.
 """Kernel manager that optionally seeds kernel memory."""
 
-from functools import partial
-from tornado import gen, ioloop
-from notebook.services.kernels.kernelmanager import MappingKernelManager
-from notebook.utils import maybe_future
+from typing import List, Optional
+from jupyter_server.services.kernels.kernelmanager import AsyncMappingKernelManager
 from jupyter_client.ioloop import IOLoopKernelManager
 
-class SeedingMappingKernelManager(MappingKernelManager):
-    """Extends the notebook kernel manager to optionally execute the contents
+
+class SeedingMappingKernelManager(AsyncMappingKernelManager):
+    """Extends the server's kernel manager to optionally execute the contents
     of a notebook on a kernel when it starts.
     """
+
+    _seed_source: Optional[List]
+    _seed_kernelspec: Optional[str]
+
     def _kernel_manager_class_default(self):
         return 'kernel_gateway.services.kernels.manager.KernelGatewayIOLoopKernelManager'
 
     @property
-    def seed_kernelspec(self):
+    def seed_kernelspec(self) -> Optional[str]:
         """Gets the kernel spec name for run the seed notebook.
 
         Prefers the spec name forced by configuration over the spec in the
@@ -41,7 +44,7 @@ class SeedingMappingKernelManager(MappingKernelManager):
         return self._seed_kernelspec
 
     @property
-    def seed_source(self):
+    def seed_source(self) -> Optional[List]:
         """Gets the source of the seed notebook in cell order.
 
         Returns
@@ -62,24 +65,21 @@ class SeedingMappingKernelManager(MappingKernelManager):
 
         return self._seed_source
 
-    def start_seeded_kernel(self, *args, **kwargs):
+    async def start_seeded_kernel(self, *args, **kwargs):
         """Start a kernel using the language specified in the seed notebook.
 
         Run synchronously so that any exceptions thrown while seed rise up
         to the caller.
         """
-        start = partial(self.start_kernel, kernel_name=self.seed_kernelspec,
-                        *args, **kwargs)
-        return ioloop.IOLoop.current().run_sync(start)
+        await self.start_kernel(kernel_name=self.seed_kernelspec, *args, **kwargs)
 
-    @gen.coroutine
-    def start_kernel(self, *args, **kwargs):
+    async def start_kernel(self, *args, **kwargs):
         """Starts a kernel and then executes a list of code cells on it if a
         seed notebook exists.
         """
         if self.parent.force_kernel_name:
             kwargs['kernel_name'] = self.parent.force_kernel_name
-        kernel_id = yield maybe_future(super(SeedingMappingKernelManager, self).start_kernel(*args, **kwargs))
+        kernel_id = await super(SeedingMappingKernelManager, self).start_kernel(*args, **kwargs)
 
         if kernel_id and self.seed_source is not None:
             # Only run source if the kernel spec matches the notebook kernel spec
@@ -106,11 +106,12 @@ class SeedingMappingKernelManager(MappingKernelManager):
                             # Shutdown the channels to remove any lingering ZMQ messages
                             client.stop_channels()
                             # Shutdown the kernel
-                            self.shutdown_kernel(kernel_id)
+                            await self.shutdown_kernel(kernel_id)
                             raise RuntimeError('Error seeding kernel memory', msg['content'])
                 # Shutdown the channels to remove any lingering ZMQ messages
                 client.stop_channels()
-        raise gen.Return(kernel_id)
+        return kernel_id
+
 
 class KernelGatewayIOLoopKernelManager(IOLoopKernelManager):
     """Extends the IOLoopKernelManager used by the SeedingMappingKernelManager.
@@ -120,9 +121,11 @@ class KernelGatewayIOLoopKernelManager(IOLoopKernelManager):
     KG_AUTH_TOKEN from the environment variables passed to the kernel when it 
     starts.
     """
-    def _launch_kernel(self, kernel_cmd, **kw):
+
+    async def _async_launch_kernel(self, kernel_cmd, **kw):
+        # TODO - should probably figure out a better place to deal with this
         env = kw['env']
         env['KERNEL_GATEWAY'] = '1'
         if 'KG_AUTH_TOKEN' in env:
             del env['KG_AUTH_TOKEN']
-        return super(KernelGatewayIOLoopKernelManager, self)._launch_kernel(kernel_cmd, **kw)
+        return await super(KernelGatewayIOLoopKernelManager, self)._async_launch_kernel(kernel_cmd, **kw)

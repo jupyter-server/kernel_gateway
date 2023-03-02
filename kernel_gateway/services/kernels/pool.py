@@ -30,11 +30,12 @@ class KernelPool(LoggingConfigurable):
         for _ in range(prespawn_count):
             self.kernel_manager.start_seeded_kernel()
 
-    def shutdown(self):
+    async def shutdown(self):
         """Shuts down all running kernels."""
         kids = self.kernel_manager.list_kernel_ids()
         for kid in kids:
-            self.kernel_manager.shutdown_kernel(kid, now=True)
+            await self.kernel_manager.shutdown_kernel(kid, now=True)
+
 
 class ManagedKernelPool(KernelPool):
     """Spawns a pool of kernels that are treated as identical delegates for
@@ -82,8 +83,7 @@ class ManagedKernelPool(KernelPool):
             iopub = self.kernel_manager.connect_iopub(kernel_id)
             iopub.on_recv(self.create_on_reply(kernel_id))
 
-    @gen.coroutine
-    def acquire(self):
+    async def acquire(self):
         """Gets a kernel client and removes it from the available pool of
         clients.
 
@@ -92,10 +92,10 @@ class ManagedKernelPool(KernelPool):
         tuple
             Kernel client instance, kernel ID
         """
-        yield self.kernel_semaphore.acquire()
+        await self.kernel_semaphore.acquire()
         kernel_id = self.kernel_pool[0]
         del self.kernel_pool[0]
-        raise gen.Return((self.kernel_clients[kernel_id], kernel_id))
+        return self.kernel_clients[kernel_id], kernel_id
 
     def release(self, kernel_id):
         """Puts a kernel back into the pool of kernels available to handle
@@ -164,12 +164,12 @@ class ManagedKernelPool(KernelPool):
         """
         self.on_recv_funcs[kernel_id] = func
 
-    def shutdown(self):
+    async def shutdown(self):
         """Shuts down all kernels and their clients.
         """
         for kid in self.kernel_clients:
             self.kernel_clients[kid].stop_channels()
-            self.kernel_manager.shutdown_kernel(kid, now=True)
+            await self.kernel_manager.shutdown_kernel(kid, now=True)
 
         # Any remaining kernels that were not created for our pool should be shutdown
-        super(ManagedKernelPool, self).shutdown()
+        await super(ManagedKernelPool, self).shutdown()

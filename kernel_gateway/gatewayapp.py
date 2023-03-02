@@ -13,7 +13,7 @@ import ssl
 from distutils.util import strtobool
 
 import nbformat
-from notebook.services.kernels.kernelmanager import MappingKernelManager
+from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
 
 try:
     from urlparse import urlparse
@@ -34,7 +34,7 @@ from tornado import httpserver
 from tornado import web
 from tornado.log import enable_pretty_logging, LogFormatter
 
-from notebook.notebookapp import random_ports
+from jupyter_server.serverapp import random_ports
 from ._version import __version__
 from .services.sessions.sessionmanager import SessionManager
 from .services.kernels.manager import SeedingMappingKernelManager
@@ -597,12 +597,13 @@ class KernelGatewayApp(JupyterApp):
             self.io_loop.stop()
         self.io_loop.add_callback(_stop)
 
-    def shutdown(self):
+    async def shutdown(self):
         """Stop all kernels in the pool."""
-        self.personality.shutdown()
+        await self.personality.shutdown()
 
     def _signal_stop(self, sig, frame):
         self.log.info("Received signal to terminate.")
         self.io_loop.stop()
+
 
 launch_instance = KernelGatewayApp.launch_instance

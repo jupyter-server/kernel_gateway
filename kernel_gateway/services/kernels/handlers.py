@@ -5,7 +5,7 @@
 import os
 
 import tornado
-import notebook.services.kernels.handlers as notebook_handlers
+import jupyter_server.services.kernels.handlers as server_handlers
 from tornado import gen
 from functools import partial
 from ...mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
@@ -14,7 +14,7 @@ from ...mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
 class MainKernelHandler(TokenAuthorizationMixin,
                         CORSMixin,
                         JSONErrorsMixin,
-                        notebook_handlers.MainKernelHandler):
+                        server_handlers.MainKernelHandler):
     """Extends the notebook main kernel handler with token auth, CORS, and
     JSON errors.
     """
@@ -27,8 +27,7 @@ class MainKernelHandler(TokenAuthorizationMixin,
     def env_process_whitelist(self):
         return self.settings['kg_env_process_whitelist']
 
-    @gen.coroutine
-    def post(self):
+    async def post(self):
         """Overrides the super class method to honor the max number of allowed
         kernels configuration setting and to support custom kernel environment
         variables for every request.
@@ -59,10 +58,10 @@ class MainKernelHandler(TokenAuthorizationMixin,
             env = {'PATH': os.getenv('PATH', '')}
             # Whitelist environment variables from current process environment
             env.update({key: value for key, value in os.environ.items()
-                   if key in self.env_process_whitelist})
+                       if key in self.env_process_whitelist})
             # Whitelist KERNEL_* args and those allowed by configuration from client
             env.update({key: value for key, value in model['env'].items()
-                   if key.startswith('KERNEL_') or key in self.env_whitelist})
+                       if key.startswith('KERNEL_') or key in self.env_whitelist})
             # No way to override the call to start_kernel on the kernel manager
             # so do a temporary partial (ugh)
             orig_start = self.kernel_manager.start_kernel
@@ -74,7 +73,7 @@ class MainKernelHandler(TokenAuthorizationMixin,
         else:
             yield super(MainKernelHandler, self).post()
 
-    def get(self):
+    async def get(self):
         """Overrides the super class method to honor the kernel listing
         configuration setting.
 
@@ -88,7 +87,7 @@ class MainKernelHandler(TokenAuthorizationMixin,
         if not self.settings.get('kg_list_kernels'):
             raise tornado.web.HTTPError(403, 'Forbidden')
         else:
-            super(MainKernelHandler, self).get()
+            await super(MainKernelHandler, self).get()
 
     def options(self, **kwargs):
         """Method for properly handling CORS pre-flight"""
@@ -98,7 +97,7 @@ class MainKernelHandler(TokenAuthorizationMixin,
 class KernelHandler(TokenAuthorizationMixin,
                     CORSMixin,
                     JSONErrorsMixin,
-                    notebook_handlers.KernelHandler):
+                    server_handlers.KernelHandler):
     """Extends the notebook kernel handler with token auth, CORS, and
     JSON errors.
     """
@@ -108,7 +107,7 @@ class KernelHandler(TokenAuthorizationMixin,
 
 
 default_handlers = []
-for path, cls in notebook_handlers.default_handlers:
+for path, cls in server_handlers.default_handlers:
     if cls.__name__ in globals():
         # Use the same named class from here if it exists
         default_handlers.append((path, globals()[cls.__name__]))

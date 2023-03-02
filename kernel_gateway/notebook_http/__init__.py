@@ -10,7 +10,7 @@ from ..services.kernels.pool import ManagedKernelPool
 from .cell.parser import APICellParser
 from .swagger.handlers import SwaggerSpecHandler
 from .handlers import NotebookAPIHandler, parameterize_path, NotebookDownloadHandler
-from notebook.utils import url_path_join
+from jupyter_server.utils import url_path_join
 from traitlets import Bool, Unicode, Dict, default
 from traitlets.config.configurable import LoggingConfigurable
 
@@ -147,11 +147,12 @@ class NotebookHTTPPersonality(LoggingConfigurable):
         """Determines whether the given code cell source should be executed when
         seeding a new kernel."""
         # seed cells that are uninvolved with the presented API
-        return (not self.api_parser.is_api_cell(code) and not self.api_parser.is_api_response_cell(code))
+        return not self.api_parser.is_api_cell(code) and not self.api_parser.is_api_response_cell(code)
 
-    def shutdown(self):
+    async def shutdown(self):
         """Stop all kernels in the pool."""
-        self.kernel_pool.shutdown()
+        await self.kernel_pool.shutdown()
+
 
 def create_personality(*args, **kwargs):
     return NotebookHTTPPersonality(*args, **kwargs)

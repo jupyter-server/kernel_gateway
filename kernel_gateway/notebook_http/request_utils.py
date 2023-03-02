@@ -4,15 +4,17 @@
 
 import json
 import re
-from tornado.httputil import parse_body_arguments
+from typing import List, Union
+from tornado.httputil import HTTPHeaders, HTTPServerRequest
 
-_named_param_regex = re.compile('(:([^/\s]*))')
-FORM_URLENCODED = 'application/x-www-form-urlencoded'
-MULTIPART_FORM_DATA = 'multipart/form-data'
-APPLICATION_JSON = 'application/json'
-TEXT_PLAIN = 'text/plain'
+_named_param_regex = re.compile(r"(:([^/\s]*))")
+FORM_URLENCODED = "application/x-www-form-urlencoded"
+MULTIPART_FORM_DATA = "multipart/form-data"
+APPLICATION_JSON = "application/json"
+TEXT_PLAIN = "text/plain"
 
-def format_request(bundle, kernel_language=''):
+
+def format_request(bundle, kernel_language: str = "") -> str:
     """Creates an assignment statement of bundle JSON-encoded to a variable
     named `REQUEST` by default or kernel_language specific.
 
@@ -23,15 +25,16 @@ def format_request(bundle, kernel_language=''):
         `<a kernel_language specific variable name> = "<json-encoded expression>"`
     """
     bundle = json.dumps(bundle)
-    if kernel_language.lower() == 'perl':
-        statement = "my $REQUEST = {}".format(bundle)
-    elif kernel_language.lower() == 'bash':
-        statement = "REQUEST={}".format(bundle)
+    if kernel_language.lower() == "perl":
+        statement = f"my $REQUEST = {bundle}"
+    elif kernel_language.lower() == "bash":
+        statement = f"REQUEST={bundle}"
     else:
-        statement = "REQUEST = {}".format(bundle)
+        statement = f"REQUEST = {bundle}"
     return statement
 
-def parameterize_path(path):
+
+def parameterize_path(path: str) -> str:
     """Creates a regex to match all named parameters in a path.
 
     Parameters
@@ -47,10 +50,11 @@ def parameterize_path(path):
     """
     matches = re.findall(_named_param_regex, path)
     for match in matches:
-        path = path.replace(match[0], '(?P<{}>[^\/]+)'.format(match[1]))
+        path = path.replace(match[0], r"(?P<{}>[^\/]+)".format(match[1]))
     return path.strip()
 
-def parse_body(request):
+
+def parse_body(request: HTTPServerRequest) -> Union[str, dict]:
     """Parses the body of an HTTP request based on its Content-Type.
 
     If no Content-Type is found, treats the value as plain text.
@@ -67,9 +71,9 @@ def parse_body(request):
     """
     content_type = TEXT_PLAIN
     body = request.body
-    body = body.decode(encoding='UTF-8') if body else ''
-    if 'Content-Type' in request.headers:
-        content_type = request.headers['Content-Type']
+    body = body.decode(encoding="UTF-8") if body else ""
+    if "Content-Type" in request.headers:
+        content_type = request.headers["Content-Type"]
     return_body = body
     if content_type == FORM_URLENCODED or content_type.startswith(MULTIPART_FORM_DATA):
         # If there is form data, we already have the values in body_arguments, we
@@ -84,7 +88,8 @@ def parse_body(request):
             pass
     return return_body
 
-def parse_args(args):
+
+def parse_args(args: List[str]) -> dict:
     """Decodes UTF-8 encoded argument values.
 
     Parameters
@@ -101,10 +106,11 @@ def parse_args(args):
     for key in args:
         rv[key] = []
         for value in args[key]:
-            rv[key].append(value.decode(encoding='UTF-8'))
+            rv[key].append(value.decode(encoding="UTF-8"))
     return rv
 
-def headers_to_dict(headers):
+
+def headers_to_dict(headers: HTTPHeaders) -> dict:
     """Turns a set of tornado headers into a Python dict.
 
     Repeat headers are aggregated into lists.

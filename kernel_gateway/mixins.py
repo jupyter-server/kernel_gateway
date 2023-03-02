@@ -2,14 +2,11 @@
 # Distributed under the terms of the Modified BSD License.
 """Mixins for Tornado handlers."""
 
+from http.client import responses
 import json
 import traceback
 from tornado import web
-try:
-    # py3
-    from http.client import responses
-except ImportError:
-    from httplib import responses
+
 
 class CORSMixin(object):
     """Mixes CORS headers into tornado.web.RequestHandlers."""
@@ -21,6 +18,7 @@ class CORSMixin(object):
         'kg_expose_headers' : 'Access-Control-Expose-Headers',
         'kg_max_age': 'Access-Control-Max-Age'
     }
+
     def set_default_headers(self):
         """Sets the CORS headers as the default for all responses.
 

@@ -3,17 +3,19 @@
 """Tornado handlers for the base of the API."""
 
 from tornado import web
-import notebook.base.handlers as notebook_handlers
+import jupyter_server.base.handlers as server_handlers
 from ..mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
+
 
 class APIVersionHandler(TokenAuthorizationMixin,
                         CORSMixin,
                         JSONErrorsMixin,
-                        notebook_handlers.APIVersionHandler):
+                        server_handlers.APIVersionHandler):
     """Extends the notebook server base API handler with token auth, CORS, and
     JSON errors.
     """
     pass
+
 
 class NotFoundHandler(JSONErrorsMixin, web.RequestHandler):
     """Catches all requests and responds with 404 JSON messages.
@@ -27,6 +29,7 @@ class NotFoundHandler(JSONErrorsMixin, web.RequestHandler):
     """
     def prepare(self):
         raise web.HTTPError(404)
+
 
 default_handlers = [
     (r'/api', APIVersionHandler),
