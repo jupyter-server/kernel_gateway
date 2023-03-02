@@ -9,6 +9,8 @@ import os
 from io import StringIO
 import unittest
 from unittest.mock import patch
+
+from jupyter_core.utils import run_sync
 from kernel_gateway.gatewayapp import KernelGatewayApp, ioloop
 from kernel_gateway import __version__
 from ..notebook_http.swagger.handlers import SwaggerSpecHandler

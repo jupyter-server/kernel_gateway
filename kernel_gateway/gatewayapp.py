@@ -15,23 +15,15 @@ from distutils.util import strtobool
 import nbformat
 from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
 
-try:
-    from urlparse import urlparse
-except ImportError:
-    from urllib.parse import urlparse
-
+from urllib.parse import urlparse
 from traitlets import Unicode, Integer, default, observe, Type, Instance, List, CBool
 
 from jupyter_core.application import JupyterApp, base_aliases
+from jupyter_core.utils import run_sync
 from jupyter_client.kernelspec import KernelSpecManager
 
-# Install the pyzmq ioloop. This has to be done before anything else from
-# tornado is imported.
-from zmq.eventloop import ioloop
-ioloop.install()
-
 from tornado import httpserver
-from tornado import web
+from tornado import web, ioloop
 from tornado.log import enable_pretty_logging, LogFormatter
 
 from jupyter_server.serverapp import random_ports
@@ -42,6 +34,12 @@ from .services.kernels.manager import SeedingMappingKernelManager
 # Only present for generating help documentation
 from .notebook_http import NotebookHTTPPersonality
 from .jupyter_websocket import JupyterWebsocketPersonality
+
+try:
+    from jupyter_server.auth.authorizer import AllowAllAuthorizer
+except ImportError:
+    AllowAllAuthorizer = object
+
 
 # Add additional command line aliases
 aliases = dict(base_aliases)
@@ -310,6 +308,20 @@ class KernelGatewayApp(JupyterApp):
         ssl_from_env = os.getenv(self.ssl_version_env)
         return ssl_from_env if ssl_from_env is None else int(ssl_from_env)
 
+    ws_ping_interval_env = "KG_WS_PING_INTERVAL_SECS"
+    ws_ping_interval_default_value = 30
+    ws_ping_interval = Integer(
+        ws_ping_interval_default_value,
+        config=True,
+        help="""Specifies the ping interval(in seconds) that should be used by zmq port
+                                     associated with spawned kernels. Set this variable to 0 to disable ping mechanism.
+                                    (KG_WS_PING_INTERVAL_SECS env var)""",
+    )
+
+    @default("ws_ping_interval")
+    def _ws_ping_interval_default(self) -> int:
+        return int(os.getenv(self.ws_ping_interval_env, self.ws_ping_interval_default_value))
+
     _log_formatter_cls = LogFormatter  # traitlet default is LevelFormatter
 
     @default("log_format")
@@ -494,7 +506,12 @@ class KernelGatewayApp(JupyterApp):
             # Set base_url for use in request handlers
             base_url=self.base_url,
             # Always allow remote access (has been limited to localhost >= notebook 5.6)
-            allow_remote_access=True
+            allow_remote_access=True,
+            # setting ws_ping_interval value that can allow it to be modified for the purpose of toggling ping mechanism
+            # for zmq web-sockets or increasing/decreasing web socket ping interval/timeouts.
+            ws_ping_interval=self.ws_ping_interval * 1000,
+            # Add a pass-through authorizer for now
+            authorizer = AllowAllAuthorizer(),
         )
 
         # promote the current personality's "config" tagged traitlet values to webapp settings
@@ -597,9 +614,9 @@ class KernelGatewayApp(JupyterApp):
             self.io_loop.stop()
         self.io_loop.add_callback(_stop)
 
-    async def shutdown(self):
+    def shutdown(self):
         """Stop all kernels in the pool."""
-        await self.personality.shutdown()
+        run_sync(self.personality.shutdown)
 
     def _signal_stop(self, sig, frame):
         self.log.info("Received signal to terminate.")

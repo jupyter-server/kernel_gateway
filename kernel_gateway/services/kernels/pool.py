@@ -2,6 +2,7 @@
 # Distributed under the terms of the Modified BSD License.
 """Kernel pools that track and delegate to kernels."""
 
+from jupyter_core.utils import run_sync
 from jupyter_client.session import Session
 
 from tornado.locks import Semaphore
@@ -22,13 +23,14 @@ class KernelPool(LoggingConfigurable):
     kernel_manager
         Kernel manager instance
     """
-    def __init__(self, prespawn_count, kernel_manager):
+    def __init__(self, prespawn_count, kernel_manager, **kwargs):
+        super().__init__(**kwargs)
         self.kernel_manager = kernel_manager
         # Make sure we've got a int
         if not prespawn_count:
             prespawn_count = 0
         for _ in range(prespawn_count):
-            self.kernel_manager.start_seeded_kernel()
+            run_sync(self.kernel_manager.start_seeded_kernel)
 
     async def shutdown(self):
         """Shuts down all running kernels."""

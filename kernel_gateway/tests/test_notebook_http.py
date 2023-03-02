@@ -243,6 +243,7 @@ class TestDefaults(TestGatewayAppBase):
         self.assertEqual(response.code, 200, 'GET endpoint did not return 200.')
         self.assertEqual(response.body, b'KERNEL_GATEWAY is 1\n', 'Unexpected body in response to GET.')
 
+
 class TestPublicStatic(TestGatewayAppBase):
     """Tests gateway behavior when public static assets are enabled."""
     def setup_app(self):
@@ -268,6 +269,7 @@ class TestPublicStatic(TestGatewayAppBase):
         self.assertEqual(response.code, 200)
         self.assertEqual(response.headers.get('Content-Type'), 'text/html')
 
+
 class TestSourceDownload(TestGatewayAppBase):
     """Tests gateway behavior when notebook download is allowed."""
     def setup_app(self):
@@ -290,6 +292,7 @@ class TestSourceDownload(TestGatewayAppBase):
             raise_error=False
         )
         self.assertEqual(response.code, 200, "/_api/source did not correctly return the downloaded notebook")
+
 
 class TestCustomResponse(TestGatewayAppBase):
     """Tests gateway behavior when the notebook contains ResponseInfo cells."""
@@ -339,6 +342,7 @@ class TestCustomResponse(TestGatewayAppBase):
         self.assertEqual(result, {'hello' : 'world'}, 'Incorrect response value.')
         self.assertEqual(response.headers['Etag'], '1234567890', 'Incorrect Etag header value.')
 
+
 class TestKernelPool(TestGatewayAppBase):
     """Tests gateway behavior with more than one kernel in the kernel pool."""
     def setup_app(self):
@@ -372,6 +376,7 @@ class TestKernelPool(TestGatewayAppBase):
                 self.assertEqual(response.body, b'hello {}\n', 'Unexpected body in response to GET after performing PUT.')
             else:
                 self.assertEqual(response.body, b'hola {}\n', 'Unexpected body in response to GET after performing PUT.')
+
     @gen_test
     def test_concurrent_request_should_not_be_blocked(self):
         """Concurrent requests should not be blocked"""
@@ -420,6 +425,7 @@ class TestKernelPool(TestGatewayAppBase):
             if count >= self.app.prespawn_count + 1:
                 break
 
+
 class TestSwaggerSpec(TestGatewayAppBase):
     """Tests gateway behavior when generating a  custom base URL is configured."""
     def setup_app(self):
@@ -456,6 +462,7 @@ class TestSwaggerSpec(TestGatewayAppBase):
         self.assertEqual(response.code, 200, "Swagger spec endpoint did not return the correct status code")
         self.assertEqual(result, expected_response, "Swagger spec endpoint did not return the correct value")
         self.assertIsNotNone(SwaggerSpecHandler.output, "Swagger spec output wasn't cached for later requests")
+
 
 class TestBaseURL(TestGatewayAppBase):
     """Tests gateway behavior when a custom base URL is configured."""

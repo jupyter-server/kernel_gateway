@@ -4,15 +4,11 @@
 
 import json
 import unittest
-
-try:
-    from unittest.mock import Mock, MagicMock
-except ImportError:
-    # Python 2.7: use backport
-    from mock import Mock, MagicMock
-
+from unittest.mock import Mock
 from tornado import web
+
 from kernel_gateway.mixins import TokenAuthorizationMixin, JSONErrorsMixin
+
 
 class SuperTokenAuthHandler(object):
     """Super class for the handler using TokenAuthorizationMixin."""
@@ -22,7 +18,8 @@ class SuperTokenAuthHandler(object):
         # called by the mixin when authentication succeeds
         self.is_prepared = True
 
-class TestableTokenAuthHandler(TokenAuthorizationMixin, SuperTokenAuthHandler):
+
+class CustomTokenAuthHandler(TokenAuthorizationMixin, SuperTokenAuthHandler):
     """Implementation that uses the TokenAuthorizationMixin for testing."""
     def __init__(self, token=''):
         self.settings = { 'kg_auth_token': token }
@@ -41,7 +38,7 @@ class TestTokenAuthMixin(unittest.TestCase):
     """Unit tests the Token authorization mixin."""
     def setUp(self):
         """Creates a handler that uses the mixin."""
-        self.mixin = TestableTokenAuthHandler('YouKnowMe')
+        self.mixin = CustomTokenAuthHandler('YouKnowMe')
 
     def test_no_token_required(self):
         """Status should be None."""
@@ -131,7 +128,7 @@ class TestTokenAuthMixin(unittest.TestCase):
         self.assertEqual(self.mixin.status_code, None)
 
 
-class TestableJSONErrorsHandler(JSONErrorsMixin):
+class CustomJSONErrorsHandler(JSONErrorsMixin):
     """Implementation that uses the JSONErrorsMixin for testing."""
     def __init__(self):
         self.headers = {}
@@ -153,11 +150,12 @@ class TestableJSONErrorsHandler(JSONErrorsMixin):
     def set_header(self, name, value):
         self.headers[name] = value
 
+
 class TestJSONErrorsMixin(unittest.TestCase):
     """Unit tests the JSON errors mixin."""
     def setUp(self):
         """Creates a handler that uses the mixin."""
-        self.mixin = TestableJSONErrorsHandler()
+        self.mixin = CustomJSONErrorsHandler()
 
     def test_status(self):
         """Status should be set on the response."""

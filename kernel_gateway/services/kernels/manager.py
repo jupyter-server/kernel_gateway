@@ -4,7 +4,7 @@
 
 from typing import List, Optional
 from jupyter_server.services.kernels.kernelmanager import AsyncMappingKernelManager
-from jupyter_client.ioloop import IOLoopKernelManager
+from jupyter_client.ioloop import AsyncIOLoopKernelManager
 
 
 class SeedingMappingKernelManager(AsyncMappingKernelManager):
@@ -113,7 +113,7 @@ class SeedingMappingKernelManager(AsyncMappingKernelManager):
         return kernel_id
 
 
-class KernelGatewayIOLoopKernelManager(IOLoopKernelManager):
+class KernelGatewayIOLoopKernelManager(AsyncIOLoopKernelManager):
     """Extends the IOLoopKernelManager used by the SeedingMappingKernelManager.
 
     Sets the environment variable 'KERNEL_GATEWAY' to '1' to indicate that the

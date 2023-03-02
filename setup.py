@@ -55,7 +55,7 @@ containerized and scaled out using common technologies like
     install_requires=[
         'jupyter_client>=7.4.4',
         'jupyter_core>=4.12,!=5.0.*',
-        'jupyter_server>=2.0.0',
+        'jupyter_server',
         'traitlets>=5.6.0',
         'tornado>=6.2.0',
         'requests>=2.7,<3.0'

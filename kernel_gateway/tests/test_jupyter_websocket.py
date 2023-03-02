@@ -20,8 +20,7 @@ from tornado.escape import json_encode, json_decode, url_escape
 
 class TestJupyterWebsocket(TestGatewayAppBase):
     """Base class for jupyter-websocket mode tests that spawn kernels."""
-    @coroutine
-    def spawn_kernel(self, kernel_body='{}'):
+    async def spawn_kernel(self, kernel_body='{}'):
         """Spawns a kernel using the gateway API and connects a websocket
         client to it.
 
@@ -36,7 +35,7 @@ class TestJupyterWebsocket(TestGatewayAppBase):
             Promise of a WebSocketClientConnection
         """
         # Request a kernel
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels'),
             method='POST',
             body=kernel_body
@@ -50,8 +49,8 @@ class TestJupyterWebsocket(TestGatewayAppBase):
             url_escape(kernel['id'])
         )
 
-        ws = yield websocket_connect(ws_url)
-        raise Return(ws)
+        ws = await websocket_connect(ws_url)
+        return ws
 
     def execute_request(self, code):
         """Creates an execute_request message.
@@ -86,16 +85,15 @@ class TestJupyterWebsocket(TestGatewayAppBase):
             'buffers': {}
         }
 
-    @coroutine
-    def await_stream(self, ws):
+    async def await_stream(self, ws):
         """Returns stream output associated with an execute_request."""
         while 1:
-            msg = yield ws.read_message()
+            msg = await ws.read_message()
             msg = json_decode(msg)
             msg_type = msg['msg_type']
             parent_msg_id = msg['parent_header']['msg_id']
             if msg_type == 'stream' and parent_msg_id == 'fake-msg-id':
-                raise Return(msg['content'])
+                return msg['content']
 
 
 class TestDefaults(TestJupyterWebsocket):
@@ -628,6 +626,7 @@ class TestEnableDiscovery(TestJupyterWebsocket):
         self.assertEqual(response.code, 200)
         self.assertTrue('[]' in str(response.body))
 
+
 class TestPrespawnKernels(TestJupyterWebsocket):
     """Tests gateway behavior when kernels are spawned at startup."""
     def setup_app(self):
@@ -744,8 +743,7 @@ class TestBadSeedURI(TestJupyterWebsocket):
         self.app.seed_uri = os.path.join(RESOURCES,
             'failing_code.ipynb')
 
-    @gen_test
-    def test_seed_error(self):
+    async def test_seed_error(self):
         """
         Server should shutdown kernel and respond with error when seed notebook
         has an execution error.
@@ -753,7 +751,7 @@ class TestBadSeedURI(TestJupyterWebsocket):
         self.app.web_app.settings['kg_list_kernels'] = True
 
         # Request a kernel
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels'),
             method='POST',
             body='{}',
@@ -799,26 +797,16 @@ class TestKernelLanguageSupport(TestJupyterWebsocket):
         self.app.seed_uri = os.path.join(RESOURCES,
             'zen.ipynb')
 
-    @coroutine
-    def spawn_kernel(self):
-        """Override the base class spawn utility method to set the Python kernel
-        version number when spawning.
-        """
-        kernel_body = json.dumps({"name":"python3"})
-        ws = yield super(TestKernelLanguageSupport, self).spawn_kernel(kernel_body)
-        raise Return(ws)
-
-    @gen_test
-    def test_seed_language_support(self):
+    async def test_seed_language_support(self):
         """Kernel should have variables preseeded from notebook."""
-        ws = yield self.spawn_kernel()
+        ws = await self.spawn_kernel(kernel_body=json.dumps({"name": "python3"}))
         code = 'print(this.s)'
 
         # Print the encoded "zen of python" string, the kernel should have
         # it imported
         req = self.execute_request(code)
         ws.write_message(json_encode(req))
-        content = yield self.await_stream(ws)
+        content = await self.await_stream(ws)
         self.assertEqual(content['name'], 'stdout')
         self.assertIn('Gur Mra bs Clguba', content['text'])
 
