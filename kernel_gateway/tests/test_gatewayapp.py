@@ -106,6 +106,7 @@ class TestGatewayAppConfig(unittest.TestCase):
             nb_contents = nbformat.read(nb_fh, 4)
 
         app = KernelGatewayApp()
+        app.init_io_loop()
         app.init_configurables()
         self.assertEqual(app.seed_notebook, nb_contents)
 
@@ -113,6 +114,7 @@ class TestGatewayAppConfig(unittest.TestCase):
     def test_start_banner(self, stderr):
 
         app = KernelGatewayApp()
+        app.init_io_loop()
         app.init_configurables()
         app.start_app()
         banner = stderr.getvalue()
