@@ -71,6 +71,7 @@ class SeedingMappingKernelManager(AsyncMappingKernelManager):
         Run synchronously so that any exceptions thrown while seed rise up
         to the caller.
         """
+        self.log.error(f"SeedingMappingKernelManager.start_seended_kernel(kernelspec={self.seed_kernelspec})")
         await self.start_kernel(kernel_name=self.seed_kernelspec, *args, **kwargs)
 
     async def start_kernel(self, *args, **kwargs):
@@ -95,13 +96,13 @@ class SeedingMappingKernelManager(AsyncMappingKernelManager):
                 )
                 # Only start channels and wait for ready in HTTP mode
                 client.start_channels()
-                client.wait_for_ready()
+                await client.wait_for_ready()
                 for code in self.seed_source:
                     # Check with the personality whether it wants the cell
                     # executed
                     if self.parent.personality.should_seed_cell(code):
                         client.execute(code)
-                        msg = client.get_shell_msg()
+                        msg = await client.get_shell_msg()
                         if msg['content']['status'] != 'ok':
                             # Shutdown the channels to remove any lingering ZMQ messages
                             client.stop_channels()

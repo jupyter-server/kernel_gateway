@@ -2,12 +2,16 @@
 # Distributed under the terms of the Modified BSD License.
 """Kernel pools that track and delegate to kernels."""
 
+import asyncio
+import jupyter_core.utils
+import tornado.gen
 from jupyter_core.utils import run_sync
 from jupyter_client.session import Session
 
 from tornado.locks import Semaphore
 from tornado import gen
 from traitlets.config.configurable import LoggingConfigurable
+from typing import List, Awaitable
 
 
 class KernelPool(LoggingConfigurable):
@@ -23,14 +27,20 @@ class KernelPool(LoggingConfigurable):
     kernel_manager
         Kernel manager instance
     """
-    def __init__(self, prespawn_count, kernel_manager, **kwargs):
-        super().__init__(**kwargs)
+
+    kernel_manager = None
+
+    async def initialize(self, prespawn_count, kernel_manager, **kwargs):
         self.kernel_manager = kernel_manager
         # Make sure we've got a int
         if not prespawn_count:
             prespawn_count = 0
+        self.log.error(f"KernelPool.prespawn_count: {prespawn_count}")
+        kernels_to_spawn: List[Awaitable] = []
         for _ in range(prespawn_count):
-            run_sync(self.kernel_manager.start_seeded_kernel)
+            kernels_to_spawn.append(self.kernel_manager.start_seeded_kernel())
+
+        await asyncio.gather(*kernels_to_spawn)
 
     async def shutdown(self):
         """Shuts down all running kernels."""
@@ -64,19 +74,26 @@ class ManagedKernelPool(KernelPool):
     kernel_semaphore : tornado.locks.Semaphore
         Semaphore that controls access to the kernel pool
     """
-    def __init__(self, prespawn_count, kernel_manager):
-        # Make sure there's at least one kernel as a delegate
-        if not prespawn_count:
-            prespawn_count = 1
+    kernel_clients: dict
+    on_recv_funcs: dict
+    kernel_pool: list
+    kernel_semaphore: Semaphore
 
-        super(ManagedKernelPool, self).__init__(prespawn_count, kernel_manager)
+    async def initialize(self, prespawn_count, kernel_manager, **kwargs):
 
         self.kernel_clients = {}
         self.on_recv_funcs = {}
         self.kernel_pool = []
 
+        # Make sure there's at least one kernel as a delegate
+        if not prespawn_count:
+            prespawn_count = 1
+
+        self.kernel_semaphore = Semaphore(prespawn_count)
+
+        await super(ManagedKernelPool, self).initialize(prespawn_count, kernel_manager)
+
         kernel_ids = self.kernel_manager.list_kernel_ids()
-        self.kernel_semaphore = Semaphore(len(kernel_ids))
 
         # Create clients and iopub handlers for prespawned kernels
         for kernel_id in kernel_ids:

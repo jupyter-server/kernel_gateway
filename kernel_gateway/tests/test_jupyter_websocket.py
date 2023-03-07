@@ -98,30 +98,27 @@ class TestJupyterWebsocket(TestGatewayAppBase):
 
 class TestDefaults(TestJupyterWebsocket):
     """Tests gateway behavior."""
-    @gen_test
-    def test_startup(self):
+    async def test_startup(self):
         """Root of kernels resource should be OK."""
         self.app.web_app.settings['kg_list_kernels'] = True
-        response = yield self.http_client.fetch(self.get_url('/api/kernels'))
+        response = await self.http_client.fetch(self.get_url('/api/kernels'))
         self.assertEqual(response.code, 200)
 
-    @gen_test
-    def test_headless(self):
+    async def test_headless(self):
         """Other notebook resources should not exist."""
-        response = yield self.http_client.fetch(self.get_url('/api/contents'),
+        response = await self.http_client.fetch(self.get_url('/api/contents'),
             raise_error=False)
         self.assertEqual(response.code, 404)
-        response = yield self.http_client.fetch(self.get_url('/'),
+        response = await self.http_client.fetch(self.get_url('/'),
             raise_error=False)
         self.assertEqual(response.code, 404)
-        response = yield self.http_client.fetch(self.get_url('/tree'),
+        response = await self.http_client.fetch(self.get_url('/tree'),
             raise_error=False)
         self.assertEqual(response.code, 404)
 
-    @gen_test
-    def test_check_origin(self):
+    async def test_check_origin(self):
         """Allow origin setting should pass through to base handlers."""
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernelspecs'),
             method='GET',
             headers={'Origin': 'fake.com:8888'},
@@ -132,7 +129,7 @@ class TestDefaults(TestJupyterWebsocket):
         app = self.get_app()
         app.settings['allow_origin'] = '*'
 
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernelspecs'),
             method='GET',
             headers={'Origin': 'fake.com:8888'},
@@ -140,36 +137,33 @@ class TestDefaults(TestJupyterWebsocket):
         )
         self.assertEqual(response.code, 200)
 
-    @gen_test
-    def test_config_bad_api_value(self):
+    async def test_config_bad_api_value(self):
         """Should raise an ImportError for nonexistent API personality modules."""
         def _set_api():
             self.app.api = 'notebook-gopher'
         self.assertRaises(ImportError, _set_api)
 
-    @gen_test
-    def test_options_without_auth_token(self):
+    async def test_options_without_auth_token(self):
         """OPTIONS requests doesn't need to submit a token. Used for CORS preflight."""
         # Set token requirement
         app = self.get_app()
         app.settings['kg_auth_token'] = 'fake-token'
 
         # Confirm that OPTIONS request doesn't require token
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api'),
             method='OPTIONS'
         )
         self.assertEqual(response.code, 200)
 
-    @gen_test
-    def test_auth_token(self):
+    async def test_auth_token(self):
         """All server endpoints should check the configured auth token."""
         # Set token requirement
         app = self.get_app()
         app.settings['kg_auth_token'] = 'fake-token'
 
-        # Requst API without the token
-        response = yield self.http_client.fetch(
+        # Request API without the token
+        response = await self.http_client.fetch(
             self.get_url('/api'),
             method='GET',
             raise_error=False
@@ -177,7 +171,7 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertEqual(response.code, 401)
 
         # Now with it
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api'),
             method='GET',
             headers={'Authorization': 'token fake-token'},
@@ -186,7 +180,7 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertEqual(response.code, 200)
 
         # Request kernelspecs without the token
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernelspecs'),
             method='GET',
             raise_error=False
@@ -194,7 +188,7 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertEqual(response.code, 401)
 
         # Now with it
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernelspecs'),
             method='GET',
             headers={'Authorization': 'token fake-token'},
@@ -203,7 +197,7 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertEqual(response.code, 200)
 
         # Request a kernel without the token
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels'),
             method='POST',
             body='{}',
@@ -212,7 +206,7 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertEqual(response.code, 401)
 
         # Request with the token now
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels'),
             method='POST',
             body='{}',
@@ -223,7 +217,7 @@ class TestDefaults(TestJupyterWebsocket):
 
         kernel = json_decode(response.body)
         # Request kernel info without the token
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels/'+url_escape(kernel['id'])),
             method='GET',
             raise_error=False
@@ -231,7 +225,7 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertEqual(response.code, 401)
 
         # Now with it
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels/'+url_escape(kernel['id'])),
             method='GET',
             headers={'Authorization': 'token fake-token'},
@@ -246,7 +240,7 @@ class TestDefaults(TestJupyterWebsocket):
         )
         # No option to ignore errors so try/except
         try:
-            ws = yield websocket_connect(ws_url)
+            ws = await websocket_connect(ws_url)
         except Exception as ex:
             self.assertEqual(ex.code, 401)
         else:
@@ -256,11 +250,10 @@ class TestDefaults(TestJupyterWebsocket):
         ws_req = HTTPRequest(ws_url,
             headers={'Authorization': 'token fake-token'}
         )
-        ws = yield websocket_connect(ws_req)
+        ws = await websocket_connect(ws_req)
         ws.close()
 
-    @gen_test
-    def test_cors_headers(self):
+    async def test_cors_headers(self):
         """All kernel endpoints should respond with configured CORS headers."""
         app = self.get_app()
         app.settings['kg_allow_credentials'] = 'false'
@@ -272,7 +265,7 @@ class TestDefaults(TestJupyterWebsocket):
         app.settings['kg_list_kernels'] = True
 
         # Get kernels to check headers
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels'),
             method='GET'
         )
@@ -285,14 +278,13 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertEqual(response.headers['Access-Control-Max-Age'], '600')
         self.assertEqual(response.headers.get('Content-Security-Policy'), None)
 
-    @gen_test
-    def test_cors_options_headers(self):
+    async def test_cors_options_headers(self):
         """All preflight OPTIONS requests should return configured headers."""
         app = self.get_app()
         app.settings['kg_allow_headers'] = 'X-XSRFToken'
         app.settings['kg_allow_methods'] = 'GET,POST,OPTIONS'
 
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernelspecs'),
             method='OPTIONS'
         )
@@ -300,14 +292,13 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertEqual(response.headers['Access-Control-Allow-Methods'], 'GET,POST,OPTIONS')
         self.assertEqual(response.headers['Access-Control-Allow-Headers'], 'X-XSRFToken')
 
-    @gen_test
-    def test_max_kernels(self):
+    async def test_max_kernels(self):
         """Number of kernels should be limited."""
         app = self.get_app()
         app.settings['kg_max_kernels'] = 1
 
         # Request a kernel
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels'),
             method='POST',
             body='{}'
@@ -315,7 +306,7 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertEqual(response.code, 201)
 
         # Request another
-        response2 = yield self.http_client.fetch(
+        response2 = await self.http_client.fetch(
             self.get_url('/api/kernels'),
             method='POST',
             body='{}',
@@ -325,34 +316,32 @@ class TestDefaults(TestJupyterWebsocket):
 
         # Shut down the kernel
         kernel = json_decode(response.body)
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels/'+url_escape(kernel['id'])),
             method='DELETE'
         )
         self.assertEqual(response.code, 204)
 
         # Try again
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels'),
             method='POST',
             body='{}'
         )
         self.assertEqual(response.code, 201)
 
-    @gen_test
-    def test_get_api(self):
+    async def test_get_api(self):
         """Server should respond with the API version metadata."""
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api')
         )
         self.assertEqual(response.code, 200)
         info = json_decode(response.body)
         self.assertIn('version', info)
 
-    @gen_test
-    def test_get_kernelspecs(self):
+    async def test_get_kernelspecs(self):
         """Server should respond with kernel spec metadata."""
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernelspecs')
         )
         self.assertEqual(response.code, 200)
@@ -360,11 +349,10 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertIn('kernelspecs', specs)
         self.assertIn('default', specs)
 
-    @gen_test
-    def test_get_kernels(self):
+    async def test_get_kernels(self):
         """Server should respond with running kernel information."""
         self.app.web_app.settings['kg_list_kernels'] = True
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels')
         )
         self.assertEqual(response.code, 200)
@@ -372,7 +360,7 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertEqual(len(kernels), 0)
 
         # Launch a kernel
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels'),
             method='POST',
             body='{}'
@@ -381,7 +369,7 @@ class TestDefaults(TestJupyterWebsocket):
         kernel = json_decode(response.body)
 
         # Check the list again
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels')
         )
         self.assertEqual(response.code, 200)
@@ -389,10 +377,9 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertEqual(len(kernels), 1)
         self.assertEqual(kernels[0]['id'], kernel['id'])
 
-    @gen_test
-    def test_kernel_comm(self):
+    async def test_kernel_comm(self):
         """Default kernel should launch and accept commands."""
-        ws = yield self.spawn_kernel()
+        ws = await self.spawn_kernel()
 
         # Send a request for kernel info
         ws.write_message(json_encode({
@@ -412,7 +399,7 @@ class TestDefaults(TestJupyterWebsocket):
 
         # Assert the reply comes back. Test will timeout if this hangs.
         for _ in range(10):
-            msg = yield ws.read_message()
+            msg = await ws.read_message()
             msg = json_decode(msg)
             if(msg['msg_type'] == 'kernel_info_reply'):
                 break
@@ -420,29 +407,27 @@ class TestDefaults(TestJupyterWebsocket):
             raise AssertionError('never received kernel_info_reply')
         ws.close()
 
-    @gen_test
-    def test_no_discovery(self):
+    async def test_no_discovery(self):
         """The list of kernels / sessions should be forbidden by default."""
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels'),
             raise_error=False
         )
         self.assertEqual(response.code, 403)
 
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/sessions'),
             raise_error=False
         )
         self.assertEqual(response.code, 403)
 
-    @gen_test
-    def test_crud_sessions(self):
+    async def test_crud_sessions(self):
         """Server should create, list, and delete sessions."""
         app = self.get_app()
         app.settings['kg_list_kernels'] = True
 
         # Ensure no sessions by default
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/sessions')
         )
         self.assertEqual(response.code, 200)
@@ -450,7 +435,7 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertEqual(len(sessions), 0)
 
         # Launch a session
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/sessions'),
             method='POST',
             body='{"id":"any","notebook":{"path":"anywhere"},"kernel":{"name":"python"}}'
@@ -459,7 +444,7 @@ class TestDefaults(TestJupyterWebsocket):
         session = json_decode(response.body)
 
         # Check the list again
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/sessions')
         )
         self.assertEqual(response.code, 200)
@@ -468,25 +453,24 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertEqual(sessions[0]['id'], session['id'])
 
         # Delete the session
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/sessions/'+session['id']),
             method='DELETE'
         )
         self.assertEqual(response.code, 204)
 
         # Make sure the list is empty
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/sessions')
         )
         self.assertEqual(response.code, 200)
         sessions = json_decode(response.body)
         self.assertEqual(len(sessions), 0)
 
-    @gen_test
-    def test_json_errors(self):
+    async def test_json_errors(self):
         """Handlers should always return JSON errors."""
         # A handler that we override
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels'),
             raise_error=False
         )
@@ -495,7 +479,7 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertEqual(body['reason'], 'Forbidden')
 
         # A handler from the notebook base
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels/1-2-3-4-5'),
             raise_error=False
         )
@@ -506,7 +490,7 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertIn('1-2-3-4-5', body['message'])
 
         # The last resort not found handler
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/fake-endpoint'),
             raise_error=False
         )
@@ -514,8 +498,7 @@ class TestDefaults(TestJupyterWebsocket):
         self.assertEqual(response.code, 404)
         self.assertEqual(body['reason'], 'Not Found')
 
-    @gen_test
-    def test_kernel_env(self):
+    async def test_kernel_env(self):
         """Kernel should start with environment vars defined in the request."""
         self.app.personality.env_whitelist = ['TEST_VAR']
         kernel_body = json.dumps({
@@ -527,10 +510,10 @@ class TestDefaults(TestJupyterWebsocket):
                 'TEST_VAR': 'allowed'
             }
         })
-        ws = yield self.spawn_kernel(kernel_body)
+        ws = await self.spawn_kernel(kernel_body)
         req = self.execute_request('import os; print(os.getenv("KERNEL_FOO"), os.getenv("NOT_KERNEL"), os.getenv("KERNEL_GATEWAY"), os.getenv("TEST_VAR"))')
         ws.write_message(json_encode(req))
-        content = yield self.await_stream(ws)
+        content = await self.await_stream(ws)
         self.assertEqual(content['name'], 'stdout')
         self.assertIn('kernel-foo-value', content['text'])
         self.assertNotIn('ignored', content['text'])
@@ -539,28 +522,25 @@ class TestDefaults(TestJupyterWebsocket):
 
         ws.close()
 
-    @gen_test
-    def test_get_swagger_yaml_spec(self):
+    async def test_get_swagger_yaml_spec(self):
         """Getting the swagger.yaml spec should be ok"""
-        response = yield self.http_client.fetch(self.get_url('/api/swagger.yaml'))
+        response = await self.http_client.fetch(self.get_url('/api/swagger.yaml'))
         self.assertEqual(response.code, 200)
 
-    @gen_test
-    def test_get_swagger_json_spec(self):
+    async def test_get_swagger_json_spec(self):
         """Getting the swagger.json spec should be ok"""
-        response = yield self.http_client.fetch(self.get_url('/api/swagger.json'))
+        response = await self.http_client.fetch(self.get_url('/api/swagger.json'))
         self.assertEqual(response.code, 200)
 
-    @gen_test
-    def test_kernel_env_auth_token(self):
+    async def test_kernel_env_auth_token(self):
         """Kernel should not have KG_AUTH_TOKEN in its environment."""
         os.environ['KG_AUTH_TOKEN'] = 'fake-secret'
 
         try:
-            ws = yield self.spawn_kernel()
+            ws = await self.spawn_kernel()
             req = self.execute_request('import os; print(os.getenv("KG_AUTH_TOKEN"))')
             ws.write_message(json_encode(req))
-            content = yield self.await_stream(ws)
+            content = await self.await_stream(ws)
             self.assertNotIn('fake-secret', content['text'])
         finally:
             del os.environ['KG_AUTH_TOKEN']
@@ -572,11 +552,10 @@ class TestCustomDefaultKernel(TestJupyterWebsocket):
     def setup_app(self):
         self.app.default_kernel_name = 'fake-kernel'
 
-    @gen_test
-    def test_default_kernel_name(self):
+    async def test_default_kernel_name(self):
         """The default kernel name should be used on empty requests."""
         # Request without an explicit kernel name
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels'),
             method='POST',
             body='',
@@ -594,16 +573,17 @@ class TestForceKernel(TestJupyterWebsocket):
             'zen.ipynb')
         self.app.force_kernel_name = 'python3'
 
-    @gen_test
-    def test_force_kernel_name(self):
+    async def test_force_kernel_name(self):
         """Should create a Python kernel."""
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels'),
             method='POST',
             body='{"name": "fake-kernel"}',
             raise_error=False
         )
         self.assertEqual(response.code, 201)
+        body = json.loads(response.body)
+        self.assertEqual(body["name"], self.app.force_kernel_name)
 
 
 class TestEnableDiscovery(TestJupyterWebsocket):
@@ -612,15 +592,14 @@ class TestEnableDiscovery(TestJupyterWebsocket):
         """Enables kernel listing for all tests."""
         self.app.personality.list_kernels = True
 
-    @gen_test
-    def test_enable_kernel_list(self):
+    async def test_enable_kernel_list(self):
         """The list of kernels, sessions, and activities should be available."""
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels'),
         )
         self.assertEqual(response.code, 200)
         self.assertTrue('[]' in str(response.body))
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/sessions'),
         )
         self.assertEqual(response.code, 200)
@@ -633,11 +612,11 @@ class TestPrespawnKernels(TestJupyterWebsocket):
         """Always prespawn 2 kernels."""
         self.app.prespawn_count = 2
 
-    @gen_test(timeout=10)
-    def test_prespawn_count(self):
+    async def test_prespawn_count(self):
         """Server should launch the given number of kernels on startup."""
         self.app.web_app.settings['kg_list_kernels'] = True
-        response = yield self.http_client.fetch(
+        # await sleep(0.5)
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels')
         )
         self.assertEqual(response.code, 200)
@@ -664,11 +643,11 @@ class TestBaseURL(TestJupyterWebsocket):
         """Enables kernel listing for all tests."""
         self.app.personality.list_kernels = True
 
-    @gen_test
-    def test_base_url(self):
+    async def test_base_url(self):
         """Server should mount resources under configured base."""
         # Should not exist at root
-        response = yield self.http_client.fetch(
+        #  await sleep(0.5)
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels'),
             method='GET',
             raise_error=False
@@ -676,7 +655,7 @@ class TestBaseURL(TestJupyterWebsocket):
         self.assertEqual(response.code, 404)
 
         # Should exist under path
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/fake/path/api/kernels'),
             method='GET'
         )
@@ -689,13 +668,12 @@ class TestRelativeBaseURL(TestJupyterWebsocket):
         """Sets the custom base URL as a relative path."""
         self.app.base_url = 'fake/path'
 
-    @gen_test
-    def test_base_url(self):
+    async def test_base_url(self):
         """Server should mount resources under fixed base."""
         self.app.web_app.settings['kg_list_kernels'] = True
 
         # Should exist under path
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/fake/path/api/kernels'),
             method='GET'
         )
@@ -709,16 +687,15 @@ class TestSeedURI(TestJupyterWebsocket):
         self.app.seed_uri = os.path.join(RESOURCES,
             'zen.ipynb')
 
-    @gen_test
-    def test_seed(self):
+    async def test_seed(self):
         """Kernel should have variables preseeded from the notebook."""
-        ws = yield self.spawn_kernel()
+        ws = await self.spawn_kernel()
 
         # Print the encoded "zen of python" string, the kernel should have
         # it imported
         req = self.execute_request('print(this.s)')
         ws.write_message(json_encode(req))
-        content = yield self.await_stream(ws)
+        content = await self.await_stream(ws)
         self.assertEqual(content['name'], 'stdout')
         self.assertIn('Gur Mra bs Clguba', content['text'])
 
@@ -760,7 +737,7 @@ class TestBadSeedURI(TestJupyterWebsocket):
         self.assertEqual(response.code, 500)
 
         # No kernels should be running
-        response = yield self.http_client.fetch(
+        response = await self.http_client.fetch(
             self.get_url('/api/kernels'),
             method='GET'
         )

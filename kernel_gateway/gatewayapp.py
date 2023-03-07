@@ -2,14 +2,17 @@
 # Distributed under the terms of the Modified BSD License.
 """Kernel Gateway Jupyter application."""
 
+import asyncio
 import errno
 import importlib
 import logging
 import os
 import sys
 import signal
+import select
 import socket
 import ssl
+import threading
 from distutils.util import strtobool
 
 import nbformat
@@ -413,8 +416,11 @@ class KernelGatewayApp(JupyterApp):
             Command line arguments
         """
         super(KernelGatewayApp, self).initialize(argv)
+
+        self.init_io_loop()
         self.init_configurables()
         self.init_webapp()
+        self.init_signal()
         self.init_http_server()
 
     def init_configurables(self):
@@ -459,15 +465,14 @@ class KernelGatewayApp(JupyterApp):
 
         if self.prespawn_count:
             if self.max_kernels and self.prespawn_count > self.max_kernels:
-                raise RuntimeError('cannot prespawn {}; more than max kernels {}'.format(
-                    self.prespawn_count, self.max_kernels)
-                )
+                msg = f"Cannot prespawn {self.prespawn_count} kernels; more than max kernels {self.max_kernels}"
+                raise RuntimeError(msg)
 
         api_module = self._load_api_module(self.api)
         func = getattr(api_module, 'create_personality')
         self.personality = func(parent=self, log=self.log)
 
-        self.personality.init_configurables()
+        self.io_loop.call_later(0.1, lambda: asyncio.create_task(self.personality.init_configurables()))
 
     def init_webapp(self):
         """Initializes Tornado web application with uri handlers.
@@ -511,7 +516,7 @@ class KernelGatewayApp(JupyterApp):
             # for zmq web-sockets or increasing/decreasing web socket ping interval/timeouts.
             ws_ping_interval=self.ws_ping_interval * 1000,
             # Add a pass-through authorizer for now
-            authorizer = AllowAllAuthorizer(),
+            authorizer=AllowAllAuthorizer(),
         )
 
         # promote the current personality's "config" tagged traitlet values to webapp settings
@@ -579,6 +584,75 @@ class KernelGatewayApp(JupyterApp):
                               'no available port could be found.')
             self.exit(1)
 
+    def init_io_loop(self):
+        """init self.io_loop so that an extension can use it by io_loop.call_later() to create background tasks"""
+        self.io_loop = ioloop.IOLoop.current()
+
+    def init_signal(self):
+        """Initialize signal handlers."""
+        if not sys.platform.startswith("win") and sys.stdin and sys.stdin.isatty():
+            signal.signal(signal.SIGINT, self._handle_sigint)
+        signal.signal(signal.SIGTERM, self._signal_stop)
+        signal.signal(signal.SIGQUIT, self._signal_stop)
+
+    def _handle_sigint(self, sig, frame):
+        """SIGINT handler spawns confirmation dialog"""
+        # register more forceful signal handler for ^C^C case
+        signal.signal(signal.SIGINT, self._signal_stop)
+        # request confirmation dialog in bg thread, to avoid
+        # blocking the App
+        thread = threading.Thread(target=self._confirm_exit)
+        thread.daemon = True
+        thread.start()
+
+    def _restore_sigint_handler(self):
+        """callback for restoring original SIGINT handler"""
+        signal.signal(signal.SIGINT, self._handle_sigint)
+
+    def _confirm_exit(self):
+        """confirm shutdown on ^C
+
+        A second ^C, or answering 'y' within 5s will cause shutdown,
+        otherwise original SIGINT handler will be restored.
+
+        This doesn't work on Windows.
+        """
+        info = self.log.info
+        info("interrupted")
+        # Check if answer_yes is set
+        if self.answer_yes:
+            self.log.critical("Shutting down...")
+            # schedule stop on the main thread,
+            # since this might be called from a signal handler
+            self.stop(from_signal=True)
+            return
+        yes = "y"
+        no = "n"
+        sys.stdout.write("Shutdown this Jupyter server (%s/[%s])? " % (yes, no))
+        sys.stdout.flush()
+        r, w, x = select.select([sys.stdin], [], [], 5)
+        if r:
+            line = sys.stdin.readline()
+            if line.lower().startswith(yes) and no not in line.lower():
+                self.log.critical("Shutdown confirmed")
+                # schedule stop on the main thread,
+                # since this might be called from a signal handler
+                self.stop(from_signal=True)
+                return
+        else:
+            info("No answer for 5s:")
+        info("resuming operation...")
+        # no answer, or answer is no:
+        # set it back to original SIGINT handler
+        # use IOLoop.add_callback because signal.signal must be called
+        # from main thread
+        self.io_loop.add_callback_from_signal(self._restore_sigint_handler)
+
+    def _signal_stop(self, sig, frame):
+        """Handle a stop signal."""
+        self.log.critical("received signal %s, stopping", sig)
+        self.stop(from_signal=True)
+
     def start_app(self):
         """Starts the application (with ioloop to follow). """
         super(KernelGatewayApp, self).start()
@@ -591,8 +665,6 @@ class KernelGatewayApp(JupyterApp):
 
         self.start_app()
 
-        self.io_loop = ioloop.IOLoop.current()
-
         if sys.platform != 'win32':
             signal.signal(signal.SIGHUP, signal.SIG_IGN)
 
@@ -603,24 +675,34 @@ class KernelGatewayApp(JupyterApp):
         except KeyboardInterrupt:
             self.log.info("Interrupted...")
         finally:
-            self.shutdown()
+            self.stop()
 
-    def stop(self):
-        """
-        Stops the HTTP server and IO loop associated with the application.
-        """
-        def _stop():
-            self.http_server.stop()
+    async def _stop(self):
+        """Cleanup resources and stop the IO Loop."""
+        await self.personality.shutdown()
+        if getattr(self, "io_loop", None):
             self.io_loop.stop()
-        self.io_loop.add_callback(_stop)
+
+    def stop(self, from_signal=False):
+        """Cleanup resources and stop the server."""
+        if hasattr(self, "http_server"):
+            # Stop a server if its set.
+            self.http_server.stop()
+        if getattr(self, "io_loop", None):
+            # use IOLoop.add_callback because signal.signal must be called
+            # from main thread
+            if from_signal:
+                self.io_loop.add_callback_from_signal(self._stop)
+            else:
+                self.io_loop.add_callback(self._stop)
 
     def shutdown(self):
         """Stop all kernels in the pool."""
-        run_sync(self.personality.shutdown)
+        self.io_loop.add_callback(self._stop)
 
-    def _signal_stop(self, sig, frame):
-        self.log.info("Received signal to terminate.")
-        self.io_loop.stop()
+    async def async_shutdown(self):
+        """Stop all kernels in the pool."""
+        await self.personality.shutdown()
 
 
 launch_instance = KernelGatewayApp.launch_instance

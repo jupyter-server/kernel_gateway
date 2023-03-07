@@ -56,8 +56,10 @@ class NotebookHTTPPersonality(LoggingConfigurable):
     def static_path_default(self):
         return os.getenv(self.static_path_env)
 
+    kernel_pool: ManagedKernelPool
+
     def __init__(self, *args, **kwargs):
-        super(NotebookHTTPPersonality, self).__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         # Import the module to use for cell endpoint parsing
         cell_parser_module = importlib.import_module(self.cell_parser)
         # Build the parser using the comment syntax for the notebook language
@@ -71,10 +73,11 @@ class NotebookHTTPPersonality(LoggingConfigurable):
                                comment_prefix=prefix,
                                notebook_cells=self.parent.seed_notebook.cells)
         self.kernel_language = kernel_language
+        self.kernel_pool = ManagedKernelPool()
 
-    def init_configurables(self):
-        """Create a managed kernel pool"""
-        self.kernel_pool = ManagedKernelPool(
+    async def init_configurables(self):
+        self.log.error("Here we are in NotebookHTTPPersonality.init_configurables!")
+        await self.kernel_pool.initialize(
             self.parent.prespawn_count,
             self.parent.kernel_manager
         )

@@ -14,7 +14,10 @@ from jupyter_core.utils import run_sync
 from kernel_gateway.gatewayapp import KernelGatewayApp, ioloop
 from kernel_gateway import __version__
 from ..notebook_http.swagger.handlers import SwaggerSpecHandler
-from tornado.testing import AsyncHTTPTestCase, ExpectLog
+from tornado.testing import ExpectLog
+from tornado.gen import coroutine, Return, sleep
+
+from .async_test_helper import HTTPIsolatedAsyncioTestCase
 
 RESOURCES = os.path.join(os.path.dirname(__file__), 'resources')
 
@@ -116,7 +119,7 @@ class TestGatewayAppConfig(unittest.TestCase):
         self.assertIn(f"Jupyter Kernel Gateway {__version__}", banner)
 
 
-class TestGatewayAppBase(AsyncHTTPTestCase, ExpectLog):
+class TestGatewayAppBase(HTTPIsolatedAsyncioTestCase, ExpectLog):
     """Base class for integration style tests using HTTP/Websockets against an
     instance of the gateway app.
 
@@ -126,13 +129,16 @@ class TestGatewayAppBase(AsyncHTTPTestCase, ExpectLog):
         Instance of the app
     """
 
-    def tearDown(self):
+    async def asyncSetUp(self):
+        await sleep(0.5)
+
+    async def asyncTearDown(self):
         """Shuts down the app after test run."""
         if self.app:
-            self.app.shutdown()
+            await self.app.async_shutdown()
         # Make sure the generated Swagger output is reset for subsequent tests
         SwaggerSpecHandler.output = None
-        super(TestGatewayAppBase, self).tearDown()
+        super().tearDown()
 
     def get_new_ioloop(self):
         """Uses a global zmq ioloop for tests."""
@@ -143,10 +149,12 @@ class TestGatewayAppBase(AsyncHTTPTestCase, ExpectLog):
         if hasattr(self, '_app'):
             return self._app
         self.app = KernelGatewayApp(log_level=logging.CRITICAL)
+        self.app.init_io_loop()
         self.setup_app()
         self.app.init_configurables()
         self.setup_configurables()
         self.app.init_webapp()
+        self.app.start_app()
         return self.app.web_app
 
     def setup_app(self):
