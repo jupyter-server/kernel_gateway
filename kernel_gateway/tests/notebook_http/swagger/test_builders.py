@@ -4,7 +4,6 @@
 
 import json
 import unittest
-from nose.tools import assert_not_equal
 from kernel_gateway.notebook_http.swagger.builders import SwaggerSpecBuilder
 from kernel_gateway.notebook_http.cell.parser import APICellParser
 from kernel_gateway.notebook_http.swagger.parser import SwaggerCellParser
@@ -86,7 +85,7 @@ class TestSwaggerBuilders(unittest.TestCase):
         new_title = 'new title. same contents.'
         builder.set_default_title(new_title)
         result = builder.build()
-        assert_not_equal(result['info']['title'], new_title, 'title should not have been changed')
+        self.assertNotEqual(result['info']['title'], new_title, 'title should not have been changed')
 
     def test_add_undocumented_cell_does_not_add_non_api_cell_to_spec(self):
         """Builder should store ignore non-API cells."""
