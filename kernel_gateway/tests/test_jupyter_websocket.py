@@ -750,6 +750,7 @@ class TestBadSeedURI(TestJupyterWebsocket):
         installed.
         """
         app = KernelGatewayApp()
+        app.init_io_loop()
         app.prespawn_count = 1
         app.seed_uri = os.path.join(RESOURCES, 'failing_code.ipynb')
         self.assertRaises(RuntimeError, app.init_configurables)

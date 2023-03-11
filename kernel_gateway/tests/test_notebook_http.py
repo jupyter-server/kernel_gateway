@@ -2,240 +2,165 @@
 # Distributed under the terms of the Modified BSD License.
 """Tests for notebook-http mode."""
 
+import asyncio
 import os
 import json
+import pytest
 
 from .test_gatewayapp import TestGatewayAppBase, RESOURCES
 from ..notebook_http.swagger.handlers import SwaggerSpecHandler
-from tornado.gen import sleep
-from tornado.testing import gen_test
+from tornado.httpclient import HTTPClientError
+from traitlets.config import Config
 
 
-class TestDefaults(TestGatewayAppBase):
+@pytest.fixture
+def jp_server_config():
+    """Allows tests to setup their specific configuration values."""
+    config = {
+        "KernelGatewayApp": {
+            "api": "kernel_gateway.notebook_http",
+            "seed_uri": os.path.join(RESOURCES, "kernel_api.ipynb"),
+        }
+    }
+    return Config(config)
+
+
+class TestDefaults:
     """Tests gateway behavior."""
-    def setup_app(self):
-        """Sets the notebook-http mode and points to a local test notebook as
-        the basis for the API.
-        """
-        self.app.api = 'kernel_gateway.notebook_http'
-        self.app.seed_uri = os.path.join(RESOURCES,'kernel_api.ipynb')
 
-    async def asyncSetUp(self):
-        await super().asyncSetUp()
-        await sleep(1.0)
-
-    async def test_api_get_endpoint(self):
+    async def test_api_get_endpoint(self, jp_fetch):
         """GET HTTP method should be callable"""
-        response = await self.http_client.fetch(
-            self.get_url('/hello'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200, 'GET endpoint did not return 200.')
-        self.assertEqual(response.body, b'hello world\n', 'Unexpected body in response to GET.')
+        response = await jp_fetch("hello", method="GET")
+        assert response.code == 200, "GET endpoint did not return 200."
+        assert response.body == b"hello world\n", "Unexpected body in response to GET."
 
-    async def test_api_get_endpoint_with_path_param(self):
+    async def test_api_get_endpoint_with_path_param(self, jp_fetch):
         """GET HTTP method should be callable with a path param"""
-        response = await self.http_client.fetch(
-            self.get_url('/hello/governor'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200, 'GET endpoint did not return 200.')
-        self.assertEqual(response.body, b'hello governor\n', 'Unexpected body in response to GET.')
+        response = await jp_fetch("hello", "governor", method="GET")
+        assert response.code == 200, "GET endpoint did not return 200."
+        assert response.body == b"hello governor\n", "Unexpected body in response to GET."
 
-    async def test_api_get_endpoint_with_query_param(self):
+    async def test_api_get_endpoint_with_query_param(self, jp_fetch):
         """GET HTTP method should be callable with a query param"""
-        response = await self.http_client.fetch(
-            self.get_url('/hello/person?person=governor'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200, 'GET endpoint did not return 200.')
-        self.assertEqual(response.body, b'hello governor\n', 'Unexpected body in response to GET.')
+        response = await jp_fetch("hello", "person", params={"person": "governor"}, method="GET")
+        assert response.code == 200, "GET endpoint did not return 200."
+        print(f"response.body = '{response.body}'")
+        assert response.body == b"hello governor\n", "Unexpected body in response to GET."
 
-    async def test_api_get_endpoint_with_multiple_query_params(self):
+    async def test_api_get_endpoint_with_multiple_query_params(self, jp_fetch):
         """GET HTTP method should be callable with multiple query params"""
-        response = await self.http_client.fetch(
-            self.get_url('/hello/persons?person=governor&person=rick'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200, 'GET endpoint did not return 200.')
-        self.assertEqual(response.body, b'hello governor, rick\n', 'Unexpected body in response to GET.')
+        response = await jp_fetch("hello", "persons", params={"person": "governor, rick"}, method="GET")
+        assert response.code == 200, "GET endpoint did not return 200."
+        assert response.body == b"hello governor, rick\n", "Unexpected body in response to GET."
 
-    async def test_api_put_endpoint(self):
+    async def test_api_put_endpoint(self, jp_fetch):
         """PUT HTTP method should be callable"""
-        response = await self.http_client.fetch(
-            self.get_url('/message'),
-            method='PUT',
-            body='hola {}',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200, 'PUT endpoint did not return 200.')
+        response = await jp_fetch("message", method="PUT", body="hola {}")
+        assert response.code == 200, "PUT endpoint did not return 200."
 
-        response = await self.http_client.fetch(
-            self.get_url('/message'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200, 'GET endpoint did not return 200.')
-        self.assertEqual(response.body, b'hola {}\n', 'Unexpected body in response to GET after performing PUT.')
+        response = await jp_fetch("message", method="GET")
+        assert response.code == 200, "GET endpoint did not return 200."
+        assert response.body == b"hola {}\n", "Unexpected body in response to GET after performing PUT."
 
-    async def test_api_post_endpoint(self):
+    async def test_api_post_endpoint(self, jp_fetch):
         """POST endpoint should be callable"""
         expected = b'["Rick", "Maggie", "Glenn", "Carol", "Daryl"]\n'
-        response = await self.http_client.fetch(
-            self.get_url('/people'),
-            method='POST',
-            body=expected.decode('UTF-8'),
-            raise_error=False,
-            headers={'Content-Type': 'application/json'}
-        )
-        self.assertEqual(response.code, 200, 'POST endpoint did not return 200.')
-        self.assertEqual(response.body, expected, 'Unexpected body in response to POST.')
+        response = await jp_fetch("people", method="POST", body=expected.decode("UTF-8"), headers={"Content-Type": "application/json"})
+        assert response.code == 200, "POST endpoint did not return 200."
+        assert response.body == expected, "Unexpected body in response to POST."
 
-    async def test_api_delete_endpoint(self):
+    async def test_api_delete_endpoint(self, jp_fetch):
         """DELETE HTTP method should be callable"""
         expected = b'["Rick", "Maggie", "Glenn", "Carol", "Daryl"]\n'
-        response = await self.http_client.fetch(
-            self.get_url('/people'),
-            method='POST',
-            body=expected.decode('UTF-8'),
-            raise_error=False,
-            headers={'Content-Type': 'application/json'}
-        )
-        response = await self.http_client.fetch(
-            self.get_url('/people/2'),
-            method='DELETE',
-            raise_error=False,
-        )
-        self.assertEqual(response.code, 200, 'DELETE endpoint did not return 200.')
-        self.assertEqual(response.body, b'["Rick", "Maggie", "Carol", "Daryl"]\n', 'Unexpected body in response to DELETE.')
+        response = await jp_fetch("people", method="POST", body=expected.decode("UTF-8"), headers={"Content-Type": "application/json"})
+        response = await jp_fetch("people", "2", method="DELETE")
+        assert response.code == 200, "DELETE endpoint did not return 200."
+        assert response.body == b'["Rick", "Maggie", "Carol", "Daryl"]\n', "Unexpected body in response to DELETE."
 
-    async def test_api_error_endpoint(self):
+    async def test_api_error_endpoint(self, jp_fetch):
         """Error in a cell should cause 500 HTTP status"""
-        response = await self.http_client.fetch(
-            self.get_url('/error'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 500, 'Cell with error did not return 500 status code.')
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("error", method="GET")
+        assert e.value.code == 500, "Cell with error did not return 500 status code."
 
-    async def test_api_stderr_endpoint(self):
+    async def test_api_stderr_endpoint(self, jp_fetch):
         """stderr output in a cell should be dropped"""
-        response = await self.http_client.fetch(
-            self.get_url('/stderr'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.body, b'I am text on stdout\n', 'Unexpected text in response')
+        response = await jp_fetch("stderr", method="GET")
+        assert response.body == b"I am text on stdout\n", "Unexpected text in response"
 
-    async def test_api_unsupported_method(self):
+    async def test_api_unsupported_method(self, jp_fetch):
         """Endpoints which do no support an HTTP verb should respond with 405.
         """
-        response = await self.http_client.fetch(
-            self.get_url('/message'),
-            method='DELETE',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 405, 'Endpoint which exists, but does not support DELETE, did not return 405 status code.')
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("message", method="DELETE")
+        assert e.value.code == 405, "Endpoint which exists, but does not support DELETE, did not return 405 status code."
 
-    async def test_api_undefined(self):
+    async def test_api_undefined(self, jp_fetch):
         """Endpoints which are not registered at all should respond with 404.
         """
-        response = await self.http_client.fetch(
-            self.get_url('/not/an/endpoint'),
-            method='GET',
-            raise_error=False
-        )
-        body = json.loads(response.body.decode('UTF-8'))
-        self.assertEqual(response.code, 404, 'Endpoint which should not exist did not return 404 status code.')
-        self.assertEqual(body['reason'], 'Not Found')
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("not", "an", "endpoint", method="GET")
 
-    async def test_api_access_http_header(self):
+        assert e.value.code == 404, "Endpoint which should not exist did not return 404 status code."
+        body = json.loads(e.value.response.body.decode("UTF-8"))
+        assert body["reason"] == "Not Found"
+
+    async def test_api_access_http_header(self, jp_fetch):
         """HTTP endpoints should be able to access request headers"""
-        content_types = ['text/plain', 'application/json', 'application/atom+xml', 'foo']
+        content_types = ["text/plain", "application/json", "application/atom+xml", "foo"]
         for content_type in content_types:
-            response = await self.http_client.fetch(
-                self.get_url('/content-type'),
-                method='GET',
-                raise_error=False,
-                headers={'Content-Type': content_type}
-            )
-            self.assertEqual(response.code, 200, 'GET endpoint did not return 200.')
-            self.assertEqual(response.body.decode(encoding='UTF-8'), '{}\n'.format(content_type), 'Unexpected value in response')
+            response = await jp_fetch("content-type", method="GET", headers={"Content-Type": content_type})
+            assert response.code == 200, "GET endpoint did not return 200."
+            assert response.body.decode(encoding="UTF-8") == f"{content_type}\n", "Unexpected value in response"
 
-    async def test_format_request_code_escaped_integration(self):
+    async def test_format_request_code_escaped_integration(self, jp_fetch):
         """Quotes should be properly escaped in request headers."""
-        #Test query with escaping of arguements and headers with multiple escaped quotes
-        response = await self.http_client.fetch(
-            self.get_url('/hello/person?person=governor'),
-            method='GET',
-            headers={'If-None-Match': '\"\"9a28a9262f954494a8de7442c63d6d0715ce0998\"\"'},
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200, 'GET endpoint did not return 200.')
-        self.assertEqual(response.body, b'hello governor\n', 'Unexpected body in response to GET.')
+        # Test query with escaping of arguments and headers with multiple escaped quotes
+        response = await jp_fetch("hello", "person", params={"person": "governor"}, method="GET",
+                                  headers={"If-None-Match":  '\"\"9a28a9262f954494a8de7442c63d6d0715ce0998\"\"'})
+        assert response.code == 200, "GET endpoint did not return 200."
+        assert response.body == b"hello governor\n", "Unexpected body in response to GET."
 
-    async def test_blocked_download_notebook_source(self):
+    async def test_blocked_download_notebook_source(self, jp_fetch):
         """Notebook source should not exist under the path /_api/source when
         `allow_notebook_download` is False or not configured.
         """
-        response = await self.http_client.fetch(
-            self.get_url('/_api/source'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 404, "/_api/source found when allow_notebook_download is false")
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("_api", "source", method="GET")
+        assert e.value.code == 404, "/_api/source found when allow_notebook_download is false"
 
-    async def test_blocked_public(self):
+    async def test_blocked_public(self, jp_fetch):
         """Public static assets should not exist under the path /public when
         `static_path` is False or not configured.
         """
-        response = await self.http_client.fetch(
-            self.get_url('/public'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 404, "/public found when static_path is false")
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("public", method="GET")
+        assert e.value.code == 404, "/public found when static_path is false"
 
-    async def test_api_returns_execute_result(self):
+    async def test_api_returns_execute_result(self, jp_fetch):
         """GET HTTP method should return the result of cell execution"""
-        response = await self.http_client.fetch(
-            self.get_url('/execute_result'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200, 'GET endpoint did not return 200.')
-        self.assertEqual(response.body, b'{"text/plain": "2"}', 'Unexpected body in response to GET.')
+        response = await jp_fetch("execute_result", method="GET")
+        assert response.code == 200, "GET endpoint did not return 200."
+        assert response.body == b'{"text/plain": "2"}', "Unexpected body in response to GET."
 
-    async def test_cells_concatenate(self):
+    async def test_cells_concatenate(self, jp_fetch):
         """Multiple cells with the same verb and path should concatenate."""
-        response = await self.http_client.fetch(
-            self.get_url('/multi'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200, 'GET endpoint did not return 200.')
-        self.assertEqual(response.body, b'x is 1\n', 'Unexpected body in response to GET.')
+        response = await jp_fetch("multi", method="GET")
+        assert response.code == 200, "GET endpoint did not return 200."
+        assert response.body == b"x is 1\n", "Unexpected body in response to GET."
 
-    async def test_kernel_gateway_environment_set(self):
+    async def test_kernel_gateway_environment_set(self, jp_fetch):
         """GET HTTP method should be callable with multiple query params"""
-        response = await self.http_client.fetch(
-            self.get_url('/env_kernel_gateway'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200, 'GET endpoint did not return 200.')
-        self.assertEqual(response.body, b'KERNEL_GATEWAY is 1\n', 'Unexpected body in response to GET.')
+        response = await jp_fetch("env_kernel_gateway", method="GET")
+        assert response.code == 200, "GET endpoint did not return 200."
+        assert response.body == b"KERNEL_GATEWAY is 1\n", "Unexpected body in response to GET."
 
 
-class TestPublicStatic(TestGatewayAppBase):
+class TestPublicStaticOld(TestGatewayAppBase):
     """Tests gateway behavior when public static assets are enabled."""
     def setup_app(self):
         """Sets the notebook-http mode and points to a local test notebook as
-        the basis for the API. 
+        the basis for the API.
         """
         self.app.api = 'kernel_gateway.notebook_http'
         self.app.seed_uri = os.path.join(RESOURCES,
@@ -256,7 +181,18 @@ class TestPublicStatic(TestGatewayAppBase):
         self.assertEqual(response.headers.get('Content-Type'), 'text/html')
 
 
-class TestSourceDownload(TestGatewayAppBase):
+@pytest.mark.parametrize("jp_argv", (["--NotebookHTTPPersonality.static_path=public"],))
+class TestPublicStatic:
+    """Tests gateway behavior when public static assets are enabled."""
+
+    async def test_get_public(self, jp_fetch, jp_argv):
+        """index.html should exist under `/public/index.html`."""
+        response = await jp_fetch("public", "index.html", method="GET")
+        assert response.code == 200
+        assert response.headers.get("Content-Type") == "text/html"
+
+
+class TestSourceDownloadOld(TestGatewayAppBase):
     """Tests gateway behavior when notebook download is allowed."""
     def setup_app(self):
         """Sets the notebook-http mode, points to a local test notebook as
@@ -271,6 +207,7 @@ class TestSourceDownload(TestGatewayAppBase):
 
     async def test_download_notebook_source(self):
         """Notebook source should exist under the path `/_api/source`."""
+        await asyncio.sleep(1)
         response = await self.http_client.fetch(
             self.get_url('/_api/source'),
             method='GET',
@@ -279,141 +216,100 @@ class TestSourceDownload(TestGatewayAppBase):
         self.assertEqual(response.code, 200, "/_api/source did not correctly return the downloaded notebook")
 
 
-class TestCustomResponse(TestGatewayAppBase):
+@pytest.mark.parametrize("jp_argv", ['--NotebookHTTPPersonality.allow_notebook_download=True', "--foo=bar"])
+class TestSourceDownload:
+    """Tests gateway behavior when notebook download is allowed."""
+
+    async def test_download_notebook_source(self, jp_fetch, jp_argv):
+        """Notebook source should exist under the path `/_api/source`."""
+        response = await jp_fetch("_api", "source", method="GET")
+        assert response.code == 200, "/_api/source did not correctly return the downloaded notebook"
+
+
+@pytest.mark.parametrize("jp_argv",
+                         ([f"--KernelGatewayApp.seed_uri={os.path.join(RESOURCES, 'responses.ipynb')}"],))
+class TestCustomResponse:
     """Tests gateway behavior when the notebook contains ResponseInfo cells."""
-    def setup_app(self):
-        """Sets the notebook-http mode and points to a local test notebook as
-        the basis for the API.
-        """
-        self.app.api = 'kernel_gateway.notebook_http'
-        self.app.seed_uri = os.path.join(RESOURCES,
-                                         'responses.ipynb')
 
-    async def test_setting_content_type(self):
+    async def test_setting_content_type(self, jp_fetch, jp_argv):
         """A response cell should allow the content type to be set"""
-        response = await self.http_client.fetch(
-            self.get_url('/json'),
-            method='GET',
-            raise_error=False
-        )
-        result = json.loads(response.body.decode('UTF-8'))
-        self.assertEqual(response.code, 200, 'Response status was not 200')
-        self.assertEqual(response.headers['Content-Type'], 'application/json', 'Incorrect mime type was set on response')
-        self.assertEqual(result, {'hello' : 'world'}, 'Incorrect response value.')
+        response = await jp_fetch("json", method="GET")
+        result = json.loads(response.body.decode("UTF-8"))
+        assert response.code == 200, "Response status was not 200"
+        assert response.headers["Content-Type"] == "application/json", "Incorrect mime type was set on response"
+        assert result == {"hello": "world"}, "Incorrect response value."
 
-    async def test_setting_response_status_code(self):
+    async def test_setting_response_status_code(self, jp_fetch, jp_argv):
         """A response cell should allow the response status code to be set"""
-        response = await self.http_client.fetch(
-            self.get_url('/nocontent'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 204, 'Response status was not 204')
-        self.assertEqual(response.body, b'', 'Incorrect response value.')
+        response = await jp_fetch("nocontent", method="GET")
+        assert response.code == 204, "Response status was not 204"
+        assert response.body == b"", "Incorrect response value."
 
-    async def test_setting_etag_header(self):
+    async def test_setting_etag_header(self, jp_fetch, jp_argv):
         """A response cell should allow the etag header to be set"""
-        response = await self.http_client.fetch(
-            self.get_url('/etag'),
-            method='GET',
-            raise_error=False
-        )
-        result = json.loads(response.body.decode('UTF-8'))
-        self.assertEqual(response.code, 200, 'Response status was not 200')
-        self.assertEqual(response.headers['Content-Type'], 'application/json', 'Incorrect mime type was set on response')
-        self.assertEqual(result, {'hello' : 'world'}, 'Incorrect response value.')
-        self.assertEqual(response.headers['Etag'], '1234567890', 'Incorrect Etag header value.')
+        response = await jp_fetch("etag", method="GET")
+        result = json.loads(response.body.decode("UTF-8"))
+        assert response.code == 200, "Response status was not 200"
+        assert response.headers["Content-Type"] == "application/json", "Incorrect mime type was set on response"
+        assert result, {"hello" : "world"} == "Incorrect response value."
+        assert response.headers["Etag"] == "1234567890", "Incorrect Etag header value."
 
 
-class TestKernelPool(TestGatewayAppBase):
-    """Tests gateway behavior with more than one kernel in the kernel pool."""
-    def setup_app(self):
-        """Sets the notebook-http mode, points to a local test notebook as
-        the basis for the API, and spawns 3 kernels to service requests.
-        """
-        self.app.prespawn_count = 3
-        self.app.api = 'kernel_gateway.notebook_http'
-        self.app.seed_uri = os.path.join(RESOURCES,
-                                         'kernel_api.ipynb')
+@pytest.mark.parametrize("jp_argv", (["--KernelGatewayApp.prespawn_count=3"],))
+class TestKernelPool:
 
-    async def test_should_cycle_through_kernels(self):
+    async def test_should_cycle_through_kernels(self, jp_fetch, jp_argv):
         """Requests should cycle through kernels"""
-        response = await self.http_client.fetch(
-            self.get_url('/message'),
-            method='PUT',
-            body='hola {}',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200, 'PUT endpoint did not return 200.')
+        response = await jp_fetch("message", method="PUT", body='hola {}')
+        assert response.code == 200, 'PUT endpoint did not return 200.'
 
-        for i in range(self.app.prespawn_count):
-            response = await self.http_client.fetch(
-                self.get_url('/message'),
-                method='GET',
-                raise_error=False
-            )
+        for i in range(3):
+            response = await jp_fetch("message", method="GET")
 
-            if i != self.app.prespawn_count-1:
-                self.assertEqual(response.body, b'hello {}\n', 'Unexpected body in response to GET after performing PUT.')
+            if i != 2:
+                assert response.body == b"hello {}\n", "Unexpected body in response to GET after performing PUT."
             else:
-                self.assertEqual(response.body, b'hola {}\n', 'Unexpected body in response to GET after performing PUT.')
+                assert response.body == b"hola {}\n", "Unexpected body in response to GET after performing PUT."
 
-    async def test_concurrent_request_should_not_be_blocked(self):
+    async def test_concurrent_request_should_not_be_blocked(self, jp_fetch, jp_argv):
         """Concurrent requests should not be blocked"""
-        response_long_running = self.http_client.fetch(
-            self.get_url('/sleep/6'),
-            method='GET',
-            raise_error=False
-        )
-        if callable(getattr(response_long_running, 'done', "")):
+        response_long_running = jp_fetch("sleep", "6", method="GET")
+        if callable(getattr(response_long_running, "done", "")):
             # Tornado 5
-            self.assertFalse(response_long_running.done(), 'Long HTTP Request is not running')
+            assert response_long_running.done() is False, "Long HTTP Request is not running"
         else:
             # Tornado 4
-            self.assertTrue(response_long_running.running(), 'Long HTTP Request is not running')
+            assert response_long_running.running() is True, "Long HTTP Request is not running"
 
-        response_short_running = await self.http_client.fetch(
-            self.get_url('/sleep/3'),
-            method='GET',
-            raise_error=False
-        )
-        if callable(getattr(response_long_running, 'done', "")):
+        response_short_running = await jp_fetch("sleep", "3", method="GET")
+        if callable(getattr(response_long_running, "done", "")):
             # Tornado 5
-            self.assertFalse(response_long_running.done(), 'Long HTTP Request is not running')
+            assert response_long_running.done() is False, "Long HTTP Request is not running"
         else:
             # Tornado 4
-            self.assertTrue(response_long_running.running(), 'Long HTTP Request is not running')
+            assert response_long_running.running() is True, "Long HTTP Request is not running"
 
-        self.assertEqual(response_short_running.code, 200, 'Short HTTP Request did not return proper status code of 200')
+        assert response_short_running.code == 200, "Short HTTP Request did not return proper status code of 200"
 
-    async def test_locking_semaphore_of_kernel_resources(self):
+    async def test_locking_semaphore_of_kernel_resources(self, jp_fetch, jp_argv):
         """Kernel pool should prevent more than one request from running on a kernel at a time.
         """
         futures = []
-        for _ in range(self.app.prespawn_count*2+1):
-            futures.append(self.http_client.fetch(
-                self.get_url('/sleep/1'),
-                method='GET',
-                raise_error=False
-            ))
+        for _ in range(7):
+            futures.append(jp_fetch("sleep", "1", method="GET"))
 
         count = 0
         for future in futures:
             await future
             count += 1
-            if count >= self.app.prespawn_count + 1:
+            if count >= 4:
                 break
 
 
-class TestSwaggerSpec(TestGatewayAppBase):
-    """Tests gateway behavior when generating a  custom base URL is configured."""
-    def setup_app(self):
-        """Sets a different notebook for testing the swagger generation."""
-        self.app.api = 'kernel_gateway.notebook_http'
-        self.app.seed_uri = os.path.join(RESOURCES,
-                                         'simple_api.ipynb')
-
-    async def test_generation_of_swagger_spec(self):
+@pytest.mark.parametrize("jp_argv",
+                         ([f"--KernelGatewayApp.seed_uri={os.path.join(RESOURCES, 'simple_api.ipynb')}"],))
+class TestSwaggerSpec:
+    async def test_generation_of_swagger_spec(self, jp_fetch, jp_argv):
         """Server should expose a swagger specification of its notebook-defined
         API.
         """
@@ -431,77 +327,18 @@ class TestSwaggerSpec(TestGatewayAppBase):
             "swagger": "2.0"
         }
 
-        response = await self.http_client.fetch(
-            self.get_url('/_api/spec/swagger.json'),
-            method='GET',
-            raise_error=False
-        )
-        result = json.loads(response.body.decode('UTF-8'))
-        self.assertEqual(response.code, 200, "Swagger spec endpoint did not return the correct status code")
-        self.assertEqual(result, expected_response, "Swagger spec endpoint did not return the correct value")
-        self.assertIsNotNone(SwaggerSpecHandler.output, "Swagger spec output wasn't cached for later requests")
+        response = await jp_fetch("_api", "spec", "swagger.json", method="GET")
+        result = json.loads(response.body.decode("UTF-8"))
+        assert response.code == 200, "Swagger spec endpoint did not return the correct status code"
+        assert result == expected_response, "Swagger spec endpoint did not return the correct value"
+        assert SwaggerSpecHandler.output is not None, "Swagger spec output wasn't cached for later requests"
 
 
-class TestBaseURL(TestGatewayAppBase):
-    """Tests gateway behavior when a custom base URL is configured."""
-    def setup_app(self):
-        """Sets the custom base URL and enables the notebook-defined API."""
-        self.app.base_url = '/fake/path'
-        self.app.api = 'kernel_gateway.notebook_http'
-        self.app.seed_uri = os.path.join(RESOURCES,
-                                         'kernel_api.ipynb')
-
-    def setup_configurables(self):
-        self.app.personality.allow_notebook_download = True
-
-    async def test_base_url(self):
-        """Server should mount resources under the configured base."""
-        # Should not exist at root
-        response = await self.http_client.fetch(
-            self.get_url('/hello'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 404)
-
-        response = await self.http_client.fetch(
-            self.get_url('/_api/spec/swagger.json'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 404)
-
-        # Should exist under path
-        response = await self.http_client.fetch(
-            self.get_url('/fake/path/hello'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200)
-
-        response = await self.http_client.fetch(
-            self.get_url('/fake/path/_api/spec/swagger.json'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200)
-
-
-class TestForceKernel(TestGatewayAppBase):
-    """Tests gateway behavior when forcing a kernel spec."""
-    def setup_app(self):
-        """Sets the notebook-http mode, points to a local test notebook as
-        the basis for the API, and forces a Python kernel.
-        """
-        self.app.api = 'kernel_gateway.notebook_http'
-        self.app.seed_uri = os.path.join(RESOURCES, 'unknown_kernel.ipynb')
-        self.app.force_kernel_name = 'python3'
-
-    async def test_force_kernel_spec(self):
+@pytest.mark.parametrize("jp_argv",
+                         ([f"--KernelGatewayApp.seed_uri={os.path.join(RESOURCES, 'unknown_kernel.ipynb')}",
+                           "--KernelGatewayApp.force_kernel_name=python3"],))
+class TestForceKernel:
+    async def test_force_kernel_spec(self, jp_fetch, jp_argv):
         """Should start properly.."""
-        response = await self.http_client.fetch(
-            self.get_url('/_api/spec/swagger.json'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200)
+        response = await jp_fetch("_api", "spec", "swagger.json", method="GET")
+        assert response.code == 200
