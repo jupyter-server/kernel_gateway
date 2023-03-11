@@ -2,12 +2,11 @@
 # Distributed under the terms of the Modified BSD License.
 """Tests for notebook-http mode."""
 
-import asyncio
 import os
 import json
 import pytest
 
-from .test_gatewayapp import TestGatewayAppBase, RESOURCES
+from .test_gatewayapp import RESOURCES
 from ..notebook_http.swagger.handlers import SwaggerSpecHandler
 from tornado.httpclient import HTTPClientError
 from traitlets.config import Config
@@ -156,32 +155,8 @@ class TestDefaults:
         assert response.body == b"KERNEL_GATEWAY is 1\n", "Unexpected body in response to GET."
 
 
-class TestPublicStaticOld(TestGatewayAppBase):
-    """Tests gateway behavior when public static assets are enabled."""
-    def setup_app(self):
-        """Sets the notebook-http mode and points to a local test notebook as
-        the basis for the API.
-        """
-        self.app.api = 'kernel_gateway.notebook_http'
-        self.app.seed_uri = os.path.join(RESOURCES,
-                                         'kernel_api.ipynb')
-
-    def setup_configurables(self):
-        """Configures the static path at the root of the resources/public folder."""
-        self.app.personality.static_path = os.path.join(RESOURCES, 'public')
-
-    async def test_get_public(self):
-        """index.html should exist under `/public/index.html`."""
-        response = await self.http_client.fetch(
-            self.get_url('/public/index.html'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200)
-        self.assertEqual(response.headers.get('Content-Type'), 'text/html')
-
-
-@pytest.mark.parametrize("jp_argv", (["--NotebookHTTPPersonality.static_path=public"],))
+@pytest.mark.parametrize("jp_argv",
+                         ([f"--NotebookHTTPPersonality.static_path={os.path.join(RESOURCES, 'public')}"],))
 class TestPublicStatic:
     """Tests gateway behavior when public static assets are enabled."""
 
@@ -192,31 +167,8 @@ class TestPublicStatic:
         assert response.headers.get("Content-Type") == "text/html"
 
 
-class TestSourceDownloadOld(TestGatewayAppBase):
-    """Tests gateway behavior when notebook download is allowed."""
-    def setup_app(self):
-        """Sets the notebook-http mode, points to a local test notebook as
-        the basis for the API, and enables downloads of that notebook.
-        """
-        self.app.api = 'kernel_gateway.notebook_http'
-        self.app.seed_uri = os.path.join(RESOURCES,
-                                         'kernel_api.ipynb')
-
-    def setup_configurables(self):
-        self.app.personality.allow_notebook_download = True
-
-    async def test_download_notebook_source(self):
-        """Notebook source should exist under the path `/_api/source`."""
-        await asyncio.sleep(1)
-        response = await self.http_client.fetch(
-            self.get_url('/_api/source'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200, "/_api/source did not correctly return the downloaded notebook")
-
-
-@pytest.mark.parametrize("jp_argv", ['--NotebookHTTPPersonality.allow_notebook_download=True', "--foo=bar"])
+@pytest.mark.parametrize("jp_argv",
+                         (["--NotebookHTTPPersonality.allow_notebook_download=True"],))
 class TestSourceDownload:
     """Tests gateway behavior when notebook download is allowed."""
 
@@ -224,6 +176,9 @@ class TestSourceDownload:
         """Notebook source should exist under the path `/_api/source`."""
         response = await jp_fetch("_api", "source", method="GET")
         assert response.code == 200, "/_api/source did not correctly return the downloaded notebook"
+        nb = json.loads(response.body)
+        for key in ["cells", "metadata", "nbformat", "nbformat_minor"]:
+            assert key in nb
 
 
 @pytest.mark.parametrize("jp_argv",

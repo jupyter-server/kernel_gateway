@@ -6,6 +6,7 @@ import os
 import json
 import tornado.web
 from tornado.log import access_log
+from typing import Optional
 from .request_utils import parse_body, parse_args, format_request, headers_to_dict, parameterize_path
 from tornado.concurrent import Future
 from ..mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
@@ -251,10 +252,10 @@ class NotebookDownloadHandler(TokenAuthorizationMixin,
                               tornado.web.StaticFileHandler):
     """Handles requests to download the annotated notebook behind the web API.
     """
-    def initialize(self, path):
+    def initialize(self, path: str, default_filename: Optional[str] = None):
         self.dirname, self.filename = os.path.split(path)
         super(NotebookDownloadHandler, self).initialize(self.dirname)
 
-    async def get(self, include_body=True):
-        res = await super(NotebookDownloadHandler, self).get(self.filename, include_body)
+    async def get(self, include_body: bool = True):
+        res = await super().get(path=self.filename, include_body=include_body)
         return res

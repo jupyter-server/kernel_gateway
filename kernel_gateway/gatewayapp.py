@@ -406,7 +406,7 @@ class KernelGatewayApp(JupyterApp):
 
         return notebook
 
-    def initialize(self, argv=None):
+    def initialize(self, argv=None, new_httpserver=True,):
         """Initializes the base class, configurable manager instances, the
         Tornado web app, and the tornado HTTP server.
 
@@ -414,14 +414,18 @@ class KernelGatewayApp(JupyterApp):
         ----------
         argv
             Command line arguments
+
+        new_httpserver
+            Indicates that a new HTTP server instance should be created
         """
-        super(KernelGatewayApp, self).initialize(argv)
+        super().initialize(argv)
 
         self.init_io_loop()
         self.init_configurables()
         self.init_webapp()
         self.init_signal()
-        self.init_http_server()
+        if new_httpserver:
+            self.init_http_server()
 
     def init_configurables(self):
         """Initializes all configurable objects including a kernel manager, kernel
@@ -655,7 +659,7 @@ class KernelGatewayApp(JupyterApp):
 
     def start_app(self):
         """Starts the application (with ioloop to follow). """
-        super(KernelGatewayApp, self).start()
+        super().start()
         self.log.info('Jupyter Kernel Gateway {} is available at http{}://{}:{}'.format(
             KernelGatewayApp.version, 's' if self.keyfile else '', self.ip, self.port
         ))

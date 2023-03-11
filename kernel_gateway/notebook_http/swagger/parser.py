@@ -8,6 +8,7 @@ from kernel_gateway.notebook_http.cell.parser import first_path_param_index, API
 from traitlets import List, Unicode
 from traitlets.config.configurable import LoggingConfigurable
 
+
 def _swaggerlet_from_markdown(cell_source):
     """ Pulls apart the first block comment of a cell's source,
     then tries to parse it as a JSON object. If it contains a 'swagger'
@@ -33,6 +34,7 @@ def _swaggerlet_from_markdown(cell_source):
         # not a swaggerlet
         pass
     return None
+
 
 class SwaggerCellParser(LoggingConfigurable):
     """A utility class for parsing Jupyter code cells to find API annotations
@@ -66,8 +68,9 @@ class SwaggerCellParser(LoggingConfigurable):
     operation_response_indicator = Unicode(default_value=r'{}\s*ResponseInfo\s+operationId:\s*(.*)')
     notebook_cells = List()
 
-    def __init__(self, comment_prefix, *args, **kwargs):
-        super(SwaggerCellParser, self).__init__(*args, **kwargs)
+    def __init__(self, comment_prefix, notebook_cells, **kwargs):
+        super(SwaggerCellParser, self).__init__(**kwargs)
+        self.notebook_cells = notebook_cells
         self.kernelspec_operation_indicator = re.compile(self.operation_indicator.format(comment_prefix))
         self.kernelspec_operation_response_indicator = re.compile(self.operation_response_indicator.format(comment_prefix))
         self.swagger = dict()
@@ -285,6 +288,7 @@ class SwaggerCellParser(LoggingConfigurable):
         if self.swagger is not None:
             return self.swagger
         return {'swagger': '2.0', 'paths': {}, 'info': {'version': '0.0.0', 'title': 'Default Title'}}
+
 
 def create_parser(*args, **kwargs):
     return SwaggerCellParser(*args, **kwargs)

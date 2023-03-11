@@ -9,7 +9,7 @@ from jupyter_core.utils import run_sync
 from jupyter_client.session import Session
 
 from tornado.locks import Semaphore
-from tornado import gen
+from tornado.concurrent import Future
 from traitlets.config.configurable import LoggingConfigurable
 from typing import List, Awaitable
 
@@ -78,13 +78,16 @@ class ManagedKernelPool(KernelPool):
     on_recv_funcs: dict
     kernel_pool: list
     kernel_semaphore: Semaphore
+    pool_initialized: Future
 
-    async def initialize(self, prespawn_count, kernel_manager, **kwargs):
-
+    def __init__(self):
+        super().__init__()
         self.kernel_clients = {}
         self.on_recv_funcs = {}
         self.kernel_pool = []
+        self.pool_initialized = Future()
 
+    async def initialize(self, prespawn_count, kernel_manager, **kwargs):
         # Make sure there's at least one kernel as a delegate
         if not prespawn_count:
             prespawn_count = 1
@@ -102,6 +105,9 @@ class ManagedKernelPool(KernelPool):
             iopub = self.kernel_manager.connect_iopub(kernel_id)
             iopub.on_recv(self.create_on_reply(kernel_id))
 
+        # Indicate that pool initialization has completed
+        self.pool_initialized.set_result(True)
+
     async def acquire(self):
         """Gets a kernel client and removes it from the available pool of
         clients.
@@ -111,6 +117,9 @@ class ManagedKernelPool(KernelPool):
         tuple
             Kernel client instance, kernel ID
         """
+        self.log.error("ManagedKernelPool.acquire: awaiting initializing")
+        await self.pool_initialized
+        self.log.error(f"ManagedKernelPool.acquire: acquiring semaphore: future = {self.pool_initialized.result()}")
         await self.kernel_semaphore.acquire()
         kernel_id = self.kernel_pool[0]
         del self.kernel_pool[0]
@@ -186,6 +195,7 @@ class ManagedKernelPool(KernelPool):
     async def shutdown(self):
         """Shuts down all kernels and their clients.
         """
+        await self.pool_initialized
         for kid in self.kernel_clients:
             self.kernel_clients[kid].stop_channels()
             await self.kernel_manager.shutdown_kernel(kid, now=True)
