@@ -1,4 +1,5 @@
 coverage
 pytest
+pytest-cov
 pytest_jupyter
 ipykernel
