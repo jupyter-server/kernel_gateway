@@ -71,7 +71,6 @@ class SeedingMappingKernelManager(AsyncMappingKernelManager):
         Run synchronously so that any exceptions thrown while seed rise up
         to the caller.
         """
-        self.log.error(f"SeedingMappingKernelManager.start_seended_kernel(kernelspec={self.seed_kernelspec})")
         await self.start_kernel(kernel_name=self.seed_kernelspec, *args, **kwargs)
 
     async def start_kernel(self, *args, **kwargs):

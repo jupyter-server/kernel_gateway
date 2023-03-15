@@ -40,7 +40,7 @@ class KernelPool(LoggingConfigurable):
         # Make sure we've got a int
         if not prespawn_count:
             prespawn_count = 0
-        self.log.error(f"KernelPool.prespawn_count: {prespawn_count}")
+
         kernels_to_spawn: List[Awaitable] = []
         for _ in range(prespawn_count):
             kernels_to_spawn.append(self.kernel_manager.start_seeded_kernel())
