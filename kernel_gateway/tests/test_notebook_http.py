@@ -6,10 +6,11 @@ import os
 import json
 import pytest
 
-from .test_gatewayapp import RESOURCES
-from ..notebook_http.swagger.handlers import SwaggerSpecHandler
 from tornado.httpclient import HTTPClientError
 from traitlets.config import Config
+
+from ..notebook_http.swagger.handlers import SwaggerSpecHandler
+from .test_gatewayapp import RESOURCES
 
 
 @pytest.fixture
@@ -259,6 +260,9 @@ class TestKernelPool:
             count += 1
             if count >= 4:
                 break
+
+        for future in futures:
+            await future
 
 
 @pytest.mark.parametrize("jp_argv",

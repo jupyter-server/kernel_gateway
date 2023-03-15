@@ -1,44 +1,17 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
-import asyncio
-import importlib
-import io
+
 import logging
-import os
-import re
-import shutil
-import urllib.parse
-from binascii import hexlify
-
-import jupyter_core.paths
-
-import nbformat
-import tornado
-import tornado.testing
-from jupyter_server._version import version_info
-from jupyter_server.auth import Authorizer
-from jupyter_server.extension import serverextension
-from kernel_gateway.gatewayapp import KernelGatewayApp
-from jupyter_server.utils import url_path_join
-from tornado.escape import url_escape
-from tornado.httpclient import HTTPClientError
-from tornado.websocket import WebSocketHandler
-from traitlets.config import Config
 import pytest
 
-pytest_plugins = ["pytest_jupyter.jupyter_core", "pytest_jupyter.jupyter_server"]
+from kernel_gateway.gatewayapp import KernelGatewayApp
 
-#
-# @pytest.fixture
-# def jp_server_config():
-#     """Allows tests to setup their specific configuration values."""
-#     config = {}
-#     return Config(config)
+pytest_plugins = ["pytest_jupyter.jupyter_core", "pytest_jupyter.jupyter_server"]
 
 
 @pytest.fixture(scope="function")
 def jp_configurable_serverapp(
-    jp_nbconvert_templates,  # this fixture must preceed jp_environ
+    jp_nbconvert_templates,  # this fixture must precede jp_environ
     jp_environ,
     jp_server_config,
     jp_argv,
@@ -121,15 +94,6 @@ def jp_server_cleanup(jp_asyncio_loop):
         app.kernel_manager.context.destroy()
     KernelGatewayApp.clear_instance()
 
-#
-# @pytest.fixture(autouse=True)
-# def jp_server_cleanup(io_loop):
-#     yield
-#     app: ServerApp = ServerApp.instance()
-#     loop = io_loop.asyncio_loop
-#     loop.run_until_complete(app._cleanup())
-#     ServerApp.clear_instance()
-
 
 @pytest.fixture
 def jp_auth_header(jp_serverapp):
@@ -138,8 +102,3 @@ def jp_auth_header(jp_serverapp):
     #     return {"Authorization": f"token {jp_serverapp.token}"}
     # return {"Authorization": f"token {jp_serverapp.identity_provider.token}"}
     return {"Authorization": f"token FIXME"}
-
-
-@pytest.fixture
-def kg_delay():
-    yield asyncio.sleep(1.0)

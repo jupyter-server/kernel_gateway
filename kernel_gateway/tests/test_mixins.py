@@ -3,7 +3,7 @@
 """Tests for handler mixins."""
 
 import json
-import unittest
+import pytest
 from unittest.mock import Mock
 from tornado import web
 
@@ -21,8 +21,8 @@ class SuperTokenAuthHandler(object):
 
 class CustomTokenAuthHandler(TokenAuthorizationMixin, SuperTokenAuthHandler):
     """Implementation that uses the TokenAuthorizationMixin for testing."""
-    def __init__(self, token=''):
-        self.settings = { 'kg_auth_token': token }
+    def __init__(self, token=""):
+        self.settings = {"kg_auth_token": token}
         self.arguments = {}
         self.response = None
         self.status_code = None
@@ -30,102 +30,93 @@ class CustomTokenAuthHandler(TokenAuthorizationMixin, SuperTokenAuthHandler):
     def send_error(self, status_code):
         self.status_code = status_code
 
-    def get_argument(self, name, default=''):
+    def get_argument(self, name, default=""):
         return self.arguments.get(name, default)
 
 
-class TestTokenAuthMixin(unittest.TestCase):
+@pytest.fixture
+def auth_mixin():
+    auth_mixin_instance = CustomTokenAuthHandler("YouKnowMe")
+    yield auth_mixin_instance
+
+
+class TestTokenAuthMixin:
     """Unit tests the Token authorization mixin."""
-    def setUp(self):
-        """Creates a handler that uses the mixin."""
-        self.mixin = CustomTokenAuthHandler('YouKnowMe')
-
-    def test_no_token_required(self):
+    def test_no_token_required(self, auth_mixin):
         """Status should be None."""
-        self.mixin.request = Mock({})
-        self.mixin.settings['kg_auth_token'] = ''
-        self.mixin.prepare()
-        self.assertEqual(self.mixin.is_prepared, True)
-        self.assertEqual(self.mixin.status_code, None)
+        auth_mixin.request = Mock({})
+        auth_mixin.settings["kg_auth_token"] = ""
+        auth_mixin.prepare()
+        assert auth_mixin.is_prepared is True
+        assert auth_mixin.status_code is None
 
-    def test_missing_token(self):
+    def test_missing_token(self, auth_mixin):
         """Status should be 'unauthorized'."""
-        attrs = { 'headers' : {
-        } }
-        self.mixin.request = Mock(**attrs)
-        self.mixin.prepare()
-        self.assertEqual(self.mixin.is_prepared, False)
-        self.assertEqual(self.mixin.status_code, 401)
+        attrs = {"headers": {}}
+        auth_mixin.request = Mock(**attrs)
+        auth_mixin.prepare()
+        assert auth_mixin.is_prepared is False
+        assert auth_mixin.status_code == 401
 
-    def test_valid_header_token(self):
+    def test_valid_header_token(self, auth_mixin):
         """Status should be None."""
-        attrs = { 'headers' : {
-            'Authorization' : 'token YouKnowMe'
-        } }
-        self.mixin.request = Mock(**attrs)
-        self.mixin.prepare()
-        self.assertEqual(self.mixin.is_prepared, True)
-        self.assertEqual(self.mixin.status_code, None)
+        attrs = {"headers": {"Authorization": "token YouKnowMe"}}
+        auth_mixin.request = Mock(**attrs)
+        auth_mixin.prepare()
+        assert auth_mixin.is_prepared is True
+        assert auth_mixin.status_code is None
 
-    def test_wrong_header_token(self):
+    def test_wrong_header_token(self, auth_mixin):
         """Status should be 'unauthorized'."""
-        attrs = { 'headers' : {
-            'Authorization' : 'token NeverHeardOf'
-        } }
-        self.mixin.request = Mock(**attrs)
-        self.mixin.prepare()
-        self.assertEqual(self.mixin.is_prepared, False)
-        self.assertEqual(self.mixin.status_code, 401)
+        attrs = {"headers": {"Authorization": "token NeverHeardOf"}}
+        auth_mixin.request = Mock(**attrs)
+        auth_mixin.prepare()
+        assert auth_mixin.is_prepared is False
+        assert auth_mixin.status_code == 401
 
-    def test_valid_url_token(self):
+    def test_valid_url_token(self, auth_mixin):
         """Status should be None."""
-        self.mixin.arguments['token'] = 'YouKnowMe'
-        attrs = { 'headers' : {
-        } }
-        self.mixin.request = Mock(**attrs)
-        self.mixin.prepare()
-        self.assertEqual(self.mixin.is_prepared, True)
-        self.assertEqual(self.mixin.status_code, None)
+        auth_mixin.arguments["token"] = "YouKnowMe"
+        attrs = {"headers": {}}
+        auth_mixin.request = Mock(**attrs)
+        auth_mixin.prepare()
+        assert auth_mixin.is_prepared is True
+        assert auth_mixin.status_code is None
 
-    def test_wrong_url_token(self):
+    def test_wrong_url_token(self, auth_mixin):
         """Status should be 'unauthorized'."""
-        self.mixin.arguments['token'] = 'NeverHeardOf'
-        attrs = { 'headers' : {
-        } }
-        self.mixin.request = Mock(**attrs)
-        self.mixin.prepare()
-        self.assertEqual(self.mixin.is_prepared, False)
-        self.assertEqual(self.mixin.status_code, 401)
+        auth_mixin.arguments["token"] = "NeverHeardOf"
+        attrs = {"headers": {}}
+        auth_mixin.request = Mock(**attrs)
+        auth_mixin.prepare()
+        assert auth_mixin.is_prepared is False
+        assert auth_mixin.status_code == 401
 
-    def test_differing_tokens_valid_url(self):
+    def test_differing_tokens_valid_url(self, auth_mixin):
         """Status should be None, URL token takes precedence"""
-        self.mixin.arguments['token'] = 'YouKnowMe'
-        attrs = { 'headers' : {
-            'Authorization' : 'token NeverHeardOf'
-        } }
-        self.mixin.request = Mock(**attrs)
-        self.mixin.prepare()
-        self.assertEqual(self.mixin.is_prepared, True)
-        self.assertEqual(self.mixin.status_code, None)
+        auth_mixin.arguments["token"] = "YouKnowMe"
+        attrs = {"headers": {"Authorization": "token NeverHeardOf"}}
+        auth_mixin.request = Mock(**attrs)
+        auth_mixin.prepare()
+        assert auth_mixin.is_prepared is True
+        assert auth_mixin.status_code is None
 
-    def test_differing_tokens_wrong_url(self):
+    def test_differing_tokens_wrong_url(self, auth_mixin):
         """Status should be 'unauthorized', URL token takes precedence"""
-        attrs = { 'headers' : {
-            'Authorization' : 'token YouKnowMe'
-        } }
-        self.mixin.request = Mock(**attrs)
-        self.mixin.arguments['token'] = 'NeverHeardOf'
-        self.mixin.prepare()
-        self.assertEqual(self.mixin.is_prepared, False)
-        self.assertEqual(self.mixin.status_code, 401)
+        attrs = {"headers": {"Authorization": "token YouKnowMe"}}
+        auth_mixin.request = Mock(**attrs)
+        auth_mixin.arguments["token"] = "NeverHeardOf"
+        auth_mixin.prepare()
+        assert auth_mixin.is_prepared is False
+        assert auth_mixin.status_code == 401
 
-    def test_unset_client_token_with_options(self):
+    def test_unset_client_token_with_options(self, auth_mixin):
         """No token is needed for an OPTIONS request. Enables CORS."""
-        attrs = { 'method' : 'OPTIONS' }
-        self.mixin.request = Mock(**attrs)
-        self.mixin.prepare()
-        self.assertEqual(self.mixin.is_prepared, True)
-        self.assertEqual(self.mixin.status_code, None)
+        attrs = {"method": "OPTIONS"}
+        auth_mixin.request = Mock(**attrs)
+        auth_mixin.prepare()
+        assert auth_mixin.is_prepared is True
+        assert auth_mixin.status_code is None
 
 
 class CustomJSONErrorsHandler(JSONErrorsMixin):
@@ -151,36 +142,38 @@ class CustomJSONErrorsHandler(JSONErrorsMixin):
         self.headers[name] = value
 
 
-class TestJSONErrorsMixin(unittest.TestCase):
+@pytest.fixture
+def errors_mixin():
+    errors_mixin_instance = CustomJSONErrorsHandler()
+    yield errors_mixin_instance
+
+
+class TestJSONErrorsMixin:
     """Unit tests the JSON errors mixin."""
-    def setUp(self):
-        """Creates a handler that uses the mixin."""
-        self.mixin = CustomJSONErrorsHandler()
-
-    def test_status(self):
+    def test_status(self, errors_mixin):
         """Status should be set on the response."""
-        self.mixin.write_error(404)
-        response = json.loads(self.mixin.response)
-        self.assertEqual(self.mixin.status_code, 404)
-        self.assertEqual(response['reason'], 'Not Found')
-        self.assertEqual(response['message'], '')
+        errors_mixin.write_error(404)
+        response = json.loads(errors_mixin.response)
+        assert errors_mixin.status_code == 404
+        assert response["reason"] == "Not Found"
+        assert response["message"] == ""
 
-    def test_custom_status(self):
+    def test_custom_status(self, errors_mixin):
         """Custom reason from exeception should be set in the response."""
-        exc = web.HTTPError(500, reason='fake-reason')
-        self.mixin.write_error(500, exc_info=[None, exc])
+        exc = web.HTTPError(500, reason="fake-reason")
+        errors_mixin.write_error(500, exc_info=[None, exc])
 
-        response = json.loads(self.mixin.response)
-        self.assertEqual(self.mixin.status_code, 500)
-        self.assertEqual(response['reason'], 'fake-reason')
-        self.assertEqual(response['message'], '')
+        response = json.loads(errors_mixin.response)
+        assert errors_mixin.status_code == 500
+        assert response["reason"] == "fake-reason"
+        assert response["message"] == ""
 
-    def test_log_message(self):
+    def test_log_message(self, errors_mixin):
         """Custom message from exeception should be set in the response."""
-        exc = web.HTTPError(410, log_message='fake-message')
-        self.mixin.write_error(410, exc_info=[None, exc])
+        exc = web.HTTPError(410, log_message="fake-message")
+        errors_mixin.write_error(410, exc_info=[None, exc])
 
-        response = json.loads(self.mixin.response)
-        self.assertEqual(self.mixin.status_code, 410)
-        self.assertEqual(response['reason'], 'Gone')
-        self.assertEqual(response['message'], 'fake-message')
+        response = json.loads(errors_mixin.response)
+        assert errors_mixin.status_code == 410
+        assert response["reason"] == "Gone"
+        assert response["message"] == "fake-message"

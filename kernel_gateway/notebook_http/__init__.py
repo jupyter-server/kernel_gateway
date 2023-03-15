@@ -76,7 +76,6 @@ class NotebookHTTPPersonality(LoggingConfigurable):
         self.kernel_pool = ManagedKernelPool()
 
     async def init_configurables(self):
-        self.log.error("Here we are in NotebookHTTPPersonality.init_configurables!")
         await self.kernel_pool.initialize(
             self.parent.prespawn_count,
             self.parent.kernel_manager

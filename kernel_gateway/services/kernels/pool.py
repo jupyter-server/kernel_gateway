@@ -3,15 +3,14 @@
 """Kernel pools that track and delegate to kernels."""
 
 import asyncio
-import jupyter_core.utils
 import tornado.gen
-from jupyter_core.utils import run_sync
-from jupyter_client.session import Session
-
 from tornado.locks import Semaphore
 from tornado.concurrent import Future
 from traitlets.config.configurable import LoggingConfigurable
-from typing import List, Awaitable
+from typing import Awaitable, List, Optional
+
+from jupyter_client.session import Session
+from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
 
 
 class KernelPool(LoggingConfigurable):
@@ -28,7 +27,13 @@ class KernelPool(LoggingConfigurable):
         Kernel manager instance
     """
 
-    kernel_manager = None
+    kernel_manager: Optional[MappingKernelManager]
+    pool_initialized: Future
+
+    def __init__(self):
+        super().__init__()
+        self.kernel_manager = None
+        self.pool_initialized = Future()
 
     async def initialize(self, prespawn_count, kernel_manager, **kwargs):
         self.kernel_manager = kernel_manager
@@ -42,8 +47,12 @@ class KernelPool(LoggingConfigurable):
 
         await asyncio.gather(*kernels_to_spawn)
 
+        # Indicate that pool initialization has completed
+        self.pool_initialized.set_result(True)
+
     async def shutdown(self):
         """Shuts down all running kernels."""
+        await self.pool_initialized
         kids = self.kernel_manager.list_kernel_ids()
         for kid in kids:
             await self.kernel_manager.shutdown_kernel(kid, now=True)
@@ -78,14 +87,14 @@ class ManagedKernelPool(KernelPool):
     on_recv_funcs: dict
     kernel_pool: list
     kernel_semaphore: Semaphore
-    pool_initialized: Future
+    managed_pool_initialized: Future
 
     def __init__(self):
         super().__init__()
         self.kernel_clients = {}
         self.on_recv_funcs = {}
         self.kernel_pool = []
-        self.pool_initialized = Future()
+        self.managed_pool_initialized = Future()
 
     async def initialize(self, prespawn_count, kernel_manager, **kwargs):
         # Make sure there's at least one kernel as a delegate
@@ -106,7 +115,7 @@ class ManagedKernelPool(KernelPool):
             iopub.on_recv(self.create_on_reply(kernel_id))
 
         # Indicate that pool initialization has completed
-        self.pool_initialized.set_result(True)
+        self.managed_pool_initialized.set_result(True)
 
     async def acquire(self):
         """Gets a kernel client and removes it from the available pool of
@@ -117,9 +126,7 @@ class ManagedKernelPool(KernelPool):
         tuple
             Kernel client instance, kernel ID
         """
-        self.log.error("ManagedKernelPool.acquire: awaiting initializing")
-        await self.pool_initialized
-        self.log.error(f"ManagedKernelPool.acquire: acquiring semaphore: future = {self.pool_initialized.result()}")
+        await self.managed_pool_initialized
         await self.kernel_semaphore.acquire()
         kernel_id = self.kernel_pool[0]
         del self.kernel_pool[0]
@@ -195,7 +202,7 @@ class ManagedKernelPool(KernelPool):
     async def shutdown(self):
         """Shuts down all kernels and their clients.
         """
-        await self.pool_initialized
+        await self.managed_pool_initialized
         for kid in self.kernel_clients:
             self.kernel_clients[kid].stop_channels()
             await self.kernel_manager.shutdown_kernel(kid, now=True)

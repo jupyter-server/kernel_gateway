@@ -2,387 +2,301 @@
 # Distributed under the terms of the Modified BSD License.
 """Tests for jupyter-websocket mode."""
 
-import os
-import sys
 import json
+import os
+import pytest
 
-from .test_gatewayapp import TestGatewayAppBase, RESOURCES
-
-from kernel_gateway.gatewayapp import KernelGatewayApp
 from jupyter_client.kernelspec import NoSuchKernel
-
-from tornado.gen import coroutine, Return, sleep
+from tornado.gen import sleep
 from tornado.websocket import websocket_connect
 from tornado.httpclient import HTTPRequest
-from tornado.testing import gen_test
+from tornado.httpclient import HTTPClientError
 from tornado.escape import json_encode, json_decode, url_escape
+from traitlets.config import Config
+
+from kernel_gateway.gatewayapp import KernelGatewayApp
+from .test_gatewayapp import RESOURCES
 
 
-class TestJupyterWebsocket(TestGatewayAppBase):
-    """Base class for jupyter-websocket mode tests that spawn kernels."""
-    async def spawn_kernel(self, kernel_body='{}'):
-        """Spawns a kernel using the gateway API and connects a websocket
-        client to it.
+@pytest.fixture
+def jp_server_config():
+    """Allows tests to setup their specific configuration values."""
+    config = {
+        "KernelGatewayApp": {
+            "api": "kernel_gateway.jupyter_websocket",
+        }
+    }
+    return Config(config)
 
-        Parameters
-        ----------
-        kernel_body : str
-            POST /api/kernels body
 
-        Returns
-        -------
-        Future
-            Promise of a WebSocketClientConnection
-        """
+@pytest.fixture
+def spawn_kernel(jp_fetch, jp_http_port, jp_base_url):
+    """Spawns a kernel where request.param contains the request body and returns the websocket."""
+
+    async def _spawn_kernel(body='{}'):
         # Request a kernel
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels'),
-            method='POST',
-            body=kernel_body
-        )
-        self.assertEqual(response.code, 201)
+        response = await jp_fetch("api", "kernels", method="POST", body=body)
+        assert response.code == 201
 
         # Connect to the kernel via websocket
         kernel = json_decode(response.body)
-        ws_url = 'ws://localhost:{}/api/kernels/{}/channels'.format(
-            self.get_http_port(),
-            url_escape(kernel['id'])
-        )
-
+        kernel_id = kernel['id']
+        ws_url = f"ws://localhost:{jp_http_port}{jp_base_url}api/kernels/{url_escape(kernel_id)}/channels"
         ws = await websocket_connect(ws_url)
         return ws
-
-    def execute_request(self, code):
-        """Creates an execute_request message.
-
-        Parameters
-        ----------
-        code : str
-            Code to execute
-
-        Returns
-        -------
-        dict
-            The message
-        """
-        return {
-            'header': {
-                'username': '',
-                'version': '5.0',
-                'session': '',
-                'msg_id': 'fake-msg-id',
-                'msg_type': 'execute_request'
-            },
-            'parent_header': {},
-            'channel': 'shell',
-            'content': {
-                'code': code,
-                'silent': False,
-                'store_history': False,
-                'user_expressions' : {}
-            },
-            'metadata': {},
-            'buffers': {}
-        }
-
-    async def await_stream(self, ws):
-        """Returns stream output associated with an execute_request."""
-        while 1:
-            msg = await ws.read_message()
-            msg = json_decode(msg)
-            msg_type = msg['msg_type']
-            parent_msg_id = msg['parent_header']['msg_id']
-            if msg_type == 'stream' and parent_msg_id == 'fake-msg-id':
-                return msg['content']
+    
+    return _spawn_kernel
 
 
-class TestDefaults(TestJupyterWebsocket):
+def get_execute_request(code: str) -> dict:
+    """Creates an execute_request message.
+
+    Parameters
+    ----------
+    code : str
+        Code to execute
+
+    Returns
+    -------
+    dict
+        The message
+    """
+    return {
+        'header': {
+            'username': '',
+            'version': '5.0',
+            'session': '',
+            'msg_id': 'fake-msg-id',
+            'msg_type': 'execute_request'
+        },
+        'parent_header': {},
+        'channel': 'shell',
+        'content': {
+            'code': code,
+            'silent': False,
+            'store_history': False,
+            'user_expressions' : {}
+        },
+        'metadata': {},
+        'buffers': {}
+    }
+
+
+async def await_stream(ws):
+    """Returns stream output associated with an execute_request."""
+    while 1:
+        msg = await ws.read_message()
+        msg = json_decode(msg)
+        msg_type = msg["msg_type"]
+        parent_msg_id = msg["parent_header"]["msg_id"]
+        if msg_type == "stream" and parent_msg_id == "fake-msg-id":
+            return msg["content"]
+
+
+class TestDefaults:
     """Tests gateway behavior."""
-    async def test_startup(self):
+    @pytest.mark.parametrize("jp_argv", (["--JupyterWebsocketPersonality.list_kernels=True"],))
+    async def test_startup(self, jp_fetch, jp_argv):
         """Root of kernels resource should be OK."""
-        self.app.web_app.settings['kg_list_kernels'] = True
-        response = await self.http_client.fetch(self.get_url('/api/kernels'))
-        self.assertEqual(response.code, 200)
+        response = await jp_fetch("api", "kernels", method="GET")
+        assert response.code == 200
 
-    async def test_headless(self):
+    async def test_headless(self, jp_fetch):
         """Other notebook resources should not exist."""
-        response = await self.http_client.fetch(self.get_url('/api/contents'),
-            raise_error=False)
-        self.assertEqual(response.code, 404)
-        response = await self.http_client.fetch(self.get_url('/'),
-            raise_error=False)
-        self.assertEqual(response.code, 404)
-        response = await self.http_client.fetch(self.get_url('/tree'),
-            raise_error=False)
-        self.assertEqual(response.code, 404)
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("api", "contents", method="GET")
+        assert e.value.code == 404
 
-    async def test_check_origin(self):
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("", method="GET")
+        assert e.value.code == 404
+
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("tree", method="GET")
+        assert e.value.code == 404
+
+    async def test_check_origin(self, jp_fetch, jp_web_app):
         """Allow origin setting should pass through to base handlers."""
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernelspecs'),
-            method='GET',
-            headers={'Origin': 'fake.com:8888'},
-            raise_error=False
-        )
-        self.assertEqual(response.code, 404)
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("api", "kernelspecs",
+                           headers={'Origin': 'fake.com:8888'}, method="GET")
+        assert e.value.code == 404
 
-        app = self.get_app()
-        app.settings['allow_origin'] = '*'
+        jp_web_app.settings['allow_origin'] = '*'
 
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernelspecs'),
-            method='GET',
-            headers={'Origin': 'fake.com:8888'},
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200)
+        response = await jp_fetch("api", "kernelspecs",
+                                  headers={'Origin': 'fake.com:8888'}, method="GET")
+        assert response.code == 200
 
-    async def test_config_bad_api_value(self):
+    @pytest.mark.parametrize("jp_server_config", (Config({"KernelGatewayApp": {"api": "notebook-gopher", }}),))
+    async def test_config_bad_api_value(self, jp_configurable_serverapp, jp_server_config):
         """Should raise an ImportError for nonexistent API personality modules."""
-        def _set_api():
-            self.app.api = 'notebook-gopher'
-        self.assertRaises(ImportError, _set_api)
+        with pytest.raises(ImportError) as e:
+            await jp_configurable_serverapp()
 
-    async def test_options_without_auth_token(self):
+    async def test_options_without_auth_token(self, jp_fetch, jp_web_app):
         """OPTIONS requests doesn't need to submit a token. Used for CORS preflight."""
         # Set token requirement
-        app = self.get_app()
-        app.settings['kg_auth_token'] = 'fake-token'
+        jp_web_app.settings['kg_auth_token'] = 'fake-token'
 
         # Confirm that OPTIONS request doesn't require token
-        response = await self.http_client.fetch(
-            self.get_url('/api'),
-            method='OPTIONS'
-        )
-        self.assertEqual(response.code, 200)
+        response = await jp_fetch("api", method='OPTIONS')
+        assert response.code == 200
 
-    async def test_auth_token(self):
+    async def test_auth_token(self, jp_fetch, jp_web_app, jp_http_port, jp_base_url):
         """All server endpoints should check the configured auth token."""
         # Set token requirement
-        app = self.get_app()
-        app.settings['kg_auth_token'] = 'fake-token'
+        jp_web_app.settings['kg_auth_token'] = 'fake-token'
 
         # Request API without the token
-        response = await self.http_client.fetch(
-            self.get_url('/api'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 401)
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("api", method="GET")
+        assert e.value.response.code == 401
 
         # Now with it
-        response = await self.http_client.fetch(
-            self.get_url('/api'),
-            method='GET',
-            headers={'Authorization': 'token fake-token'},
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200)
+        response = await jp_fetch("api", method="GET",
+                                  headers={'Authorization': 'token fake-token'})
+        assert response.code == 200
 
         # Request kernelspecs without the token
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernelspecs'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 401)
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("api", "kernelspecs", method="GET")
+        assert e.value.response.code == 401
 
         # Now with it
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernelspecs'),
-            method='GET',
-            headers={'Authorization': 'token fake-token'},
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200)
+        response = await jp_fetch("api", "kernelspecs", method="GET",
+                                  headers={'Authorization': 'token fake-token'})
+        assert response.code == 200
 
         # Request a kernel without the token
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels'),
-            method='POST',
-            body='{}',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 401)
-
-        # Request with the token now
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels'),
-            method='POST',
-            body='{}',
-            headers={'Authorization': 'token fake-token'},
-            raise_error=False
-        )
-        self.assertEqual(response.code, 201)
-
-        kernel = json_decode(response.body)
-        # Request kernel info without the token
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels/'+url_escape(kernel['id'])),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 401)
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("api", "kernels", method="POST", body='{}')
+        assert e.value.response.code == 401
 
         # Now with it
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels/'+url_escape(kernel['id'])),
-            method='GET',
-            headers={'Authorization': 'token fake-token'},
-            raise_error=False
-        )
-        self.assertEqual(response.code, 200)
+        response = await jp_fetch("api", "kernels", method="POST", body='{}',
+                                  headers={'Authorization': 'token fake-token'})
+        assert response.code == 201
+        kernel = json_decode(response.body)
+
+        # Request kernel info without the token
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("api", "kernels", url_escape(kernel['id']), method="GET")
+        assert e.value.response.code == 401
+
+        # Now with it
+        response = await jp_fetch("api", "kernels", url_escape(kernel['id']), method="GET",
+                                  headers={'Authorization': 'token fake-token'})
+        assert response.code == 200
 
         # Request websocket connection without the token
-        ws_url = 'ws://localhost:{}/api/kernels/{}/channels'.format(
-            self.get_http_port(),
-            url_escape(kernel['id'])
-        )
+        ws_url = f"ws://localhost:{jp_http_port}{jp_base_url}api/kernels/{url_escape(kernel['id'])}/channels"
+
         # No option to ignore errors so try/except
-        try:
-            ws = await websocket_connect(ws_url)
-        except Exception as ex:
-            self.assertEqual(ex.code, 401)
-        else:
-            raise AssertionError('no exception raised')
+        with pytest.raises(HTTPClientError) as e:
+            await websocket_connect(ws_url)
+        assert e.value.response.code == 401
 
         # Now request the websocket with the token
-        ws_req = HTTPRequest(ws_url,
-            headers={'Authorization': 'token fake-token'}
-        )
+        ws_req = HTTPRequest(ws_url, headers={'Authorization': 'token fake-token'})
         ws = await websocket_connect(ws_req)
         ws.close()
 
-    async def test_cors_headers(self):
+    async def test_cors_headers(self, jp_fetch, jp_web_app):
         """All kernel endpoints should respond with configured CORS headers."""
-        app = self.get_app()
-        app.settings['kg_allow_credentials'] = 'false'
-        app.settings['kg_allow_headers'] = 'Authorization,Content-Type'
-        app.settings['kg_allow_methods'] = 'GET,POST'
-        app.settings['kg_allow_origin'] = 'https://jupyter.org'
-        app.settings['kg_expose_headers'] = 'X-My-Fake-Header'
-        app.settings['kg_max_age'] = '600'
-        app.settings['kg_list_kernels'] = True
+
+        jp_web_app.settings['kg_allow_credentials'] = 'false'
+        jp_web_app.settings['kg_allow_headers'] = 'Authorization,Content-Type'
+        jp_web_app.settings['kg_allow_methods'] = 'GET,POST'
+        jp_web_app.settings['kg_allow_origin'] = 'https://jupyter.org'
+        jp_web_app.settings['kg_expose_headers'] = 'X-My-Fake-Header'
+        jp_web_app.settings['kg_max_age'] = '600'
+        jp_web_app.settings['kg_list_kernels'] = True
 
         # Get kernels to check headers
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels'),
-            method='GET'
-        )
-        self.assertEqual(response.code, 200)
-        self.assertEqual(response.headers['Access-Control-Allow-Credentials'], 'false')
-        self.assertEqual(response.headers['Access-Control-Allow-Headers'], 'Authorization,Content-Type')
-        self.assertEqual(response.headers['Access-Control-Allow-Methods'], 'GET,POST')
-        self.assertEqual(response.headers['Access-Control-Allow-Origin'], 'https://jupyter.org')
-        self.assertEqual(response.headers['Access-Control-Expose-Headers'], 'X-My-Fake-Header')
-        self.assertEqual(response.headers['Access-Control-Max-Age'], '600')
-        self.assertEqual(response.headers.get('Content-Security-Policy'), None)
+        response = await jp_fetch("api", "kernels", method="GET")
+        assert response.code == 200
+        assert response.headers['Access-Control-Allow-Credentials'] == 'false'
+        assert response.headers['Access-Control-Allow-Headers'] == 'Authorization,Content-Type'
+        assert response.headers['Access-Control-Allow-Methods'] == 'GET,POST'
+        assert response.headers['Access-Control-Allow-Origin'] == 'https://jupyter.org'
+        assert response.headers['Access-Control-Expose-Headers'] == 'X-My-Fake-Header'
+        assert response.headers['Access-Control-Max-Age'] == '600'
+        assert response.headers.get('Content-Security-Policy') is None
 
-    async def test_cors_options_headers(self):
+    async def test_cors_options_headers(self, jp_fetch, jp_web_app):
         """All preflight OPTIONS requests should return configured headers."""
-        app = self.get_app()
-        app.settings['kg_allow_headers'] = 'X-XSRFToken'
-        app.settings['kg_allow_methods'] = 'GET,POST,OPTIONS'
+        jp_web_app.settings['kg_allow_headers'] = 'X-XSRFToken'
+        jp_web_app.settings['kg_allow_methods'] = 'GET,POST,OPTIONS'
 
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernelspecs'),
-            method='OPTIONS'
-        )
-        self.assertEqual(response.code, 200)
-        self.assertEqual(response.headers['Access-Control-Allow-Methods'], 'GET,POST,OPTIONS')
-        self.assertEqual(response.headers['Access-Control-Allow-Headers'], 'X-XSRFToken')
+        response = await jp_fetch("api", "kernelspecs", method='OPTIONS')
+        assert response.code == 200
+        assert response.headers['Access-Control-Allow-Methods'] == 'GET,POST,OPTIONS'
+        assert response.headers['Access-Control-Allow-Headers'] == 'X-XSRFToken'
 
-    async def test_max_kernels(self):
+    async def test_max_kernels(self, jp_fetch, jp_web_app):
         """Number of kernels should be limited."""
-        app = self.get_app()
-        app.settings['kg_max_kernels'] = 1
+        jp_web_app.settings['kg_max_kernels'] = 1
 
         # Request a kernel
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels'),
-            method='POST',
-            body='{}'
-        )
-        self.assertEqual(response.code, 201)
+        response = await jp_fetch("api", "kernels", method="POST", body='{}')
+        assert response.code == 201
 
         # Request another
-        response2 = await self.http_client.fetch(
-            self.get_url('/api/kernels'),
-            method='POST',
-            body='{}',
-            raise_error=False
-        )
-        self.assertEqual(response2.code, 403)
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("api", "kernels", method="POST", body='{}')
+        assert e.value.response.code == 403
 
         # Shut down the kernel
         kernel = json_decode(response.body)
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels/'+url_escape(kernel['id'])),
-            method='DELETE'
-        )
-        self.assertEqual(response.code, 204)
+        response = await jp_fetch("api", "kernels", url_escape(kernel['id']), method="DELETE")
+        assert response.code == 204
 
-        # Try again
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels'),
-            method='POST',
-            body='{}'
-        )
-        self.assertEqual(response.code, 201)
+        # Try creation again
+        response = await jp_fetch("api", "kernels", method="POST", body='{}')
+        assert response.code == 201
 
-    async def test_get_api(self):
+    async def test_get_api(self, jp_fetch):
         """Server should respond with the API version metadata."""
-        response = await self.http_client.fetch(
-            self.get_url('/api')
-        )
-        self.assertEqual(response.code, 200)
+        response = await jp_fetch("api", method="GET")
+        assert response.code == 200
         info = json_decode(response.body)
-        self.assertIn('version', info)
+        assert 'version' in info
 
-    async def test_get_kernelspecs(self):
+    async def test_get_kernelspecs(self, jp_fetch):
         """Server should respond with kernel spec metadata."""
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernelspecs')
-        )
-        self.assertEqual(response.code, 200)
+        response = await jp_fetch("api", "kernelspecs", method="GET")
+        assert response.code == 200
         specs = json_decode(response.body)
-        self.assertIn('kernelspecs', specs)
-        self.assertIn('default', specs)
+        assert 'kernelspecs' in specs
+        assert 'default' in specs
 
-    async def test_get_kernels(self):
+    async def test_get_kernels(self, jp_fetch, jp_web_app):
         """Server should respond with running kernel information."""
-        self.app.web_app.settings['kg_list_kernels'] = True
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels')
-        )
-        self.assertEqual(response.code, 200)
+        jp_web_app.settings['kg_list_kernels'] = True
+        response = await jp_fetch("api", "kernels", method="GET")
+        assert response.code == 200
         kernels = json_decode(response.body)
-        self.assertEqual(len(kernels), 0)
+        assert len(kernels) == 0
 
         # Launch a kernel
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels'),
-            method='POST',
-            body='{}'
-        )
-        self.assertEqual(response.code, 201)
+        response = await jp_fetch("api", "kernels", method="POST", body='{}')
+        assert response.code == 201
         kernel = json_decode(response.body)
 
         # Check the list again
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels')
-        )
-        self.assertEqual(response.code, 200)
+        response = await jp_fetch("api", "kernels", method="GET")
+        assert response.code == 200
         kernels = json_decode(response.body)
-        self.assertEqual(len(kernels), 1)
-        self.assertEqual(kernels[0]['id'], kernel['id'])
+        assert len(kernels) == 1
+        assert kernels[0]['id'] == kernel['id']
 
-    async def test_kernel_comm(self):
+    async def test_kernel_comm(self, spawn_kernel):
         """Default kernel should launch and accept commands."""
-        ws = await self.spawn_kernel()
+        ws = await spawn_kernel()
 
         # Send a request for kernel info
-        ws.write_message(json_encode({
+        await ws.write_message(json_encode({
             'header': {
                 'username': '',
                 'version': '5.0',
@@ -401,359 +315,295 @@ class TestDefaults(TestJupyterWebsocket):
         for _ in range(10):
             msg = await ws.read_message()
             msg = json_decode(msg)
-            if(msg['msg_type'] == 'kernel_info_reply'):
+            if msg['msg_type'] == 'kernel_info_reply':
                 break
         else:
             raise AssertionError('never received kernel_info_reply')
         ws.close()
 
-    async def test_no_discovery(self):
+    async def test_no_discovery(self, jp_fetch):
         """The list of kernels / sessions should be forbidden by default."""
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels'),
-            raise_error=False
-        )
-        self.assertEqual(response.code, 403)
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("api", "kernels", method="GET")
+        assert e.value.response.code == 403
 
-        response = await self.http_client.fetch(
-            self.get_url('/api/sessions'),
-            raise_error=False
-        )
-        self.assertEqual(response.code, 403)
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("api", "sessions", method="GET")
+        assert e.value.response.code == 403
 
-    async def test_crud_sessions(self):
+    async def test_crud_sessions(self, jp_fetch, jp_web_app):
         """Server should create, list, and delete sessions."""
-        app = self.get_app()
-        app.settings['kg_list_kernels'] = True
+        jp_web_app.settings['kg_list_kernels'] = True
 
         # Ensure no sessions by default
-        response = await self.http_client.fetch(
-            self.get_url('/api/sessions')
-        )
-        self.assertEqual(response.code, 200)
+        response = await jp_fetch("api", "sessions", method="GET")
+        assert response.code == 200
         sessions = json_decode(response.body)
-        self.assertEqual(len(sessions), 0)
+        assert len(sessions) == 0
 
         # Launch a session
-        response = await self.http_client.fetch(
-            self.get_url('/api/sessions'),
-            method='POST',
-            body='{"id":"any","notebook":{"path":"anywhere"},"kernel":{"name":"python"}}'
-        )
-        self.assertEqual(response.code, 201)
+        response = await jp_fetch("api", "sessions", method="POST",
+                                  body='{"id":"any","notebook":{"path":"anywhere"},"kernel":{"name":"python"}}')
+        assert response.code == 201
         session = json_decode(response.body)
 
         # Check the list again
-        response = await self.http_client.fetch(
-            self.get_url('/api/sessions')
-        )
-        self.assertEqual(response.code, 200)
+        response = await jp_fetch("api", "sessions", method="GET")
+        assert response.code == 200
         sessions = json_decode(response.body)
-        self.assertEqual(len(sessions), 1)
-        self.assertEqual(sessions[0]['id'], session['id'])
+        assert len(sessions) == 1
+        assert sessions[0]['id'] == session['id']
 
         # Delete the session
-        response = await self.http_client.fetch(
-            self.get_url('/api/sessions/'+session['id']),
-            method='DELETE'
-        )
-        self.assertEqual(response.code, 204)
+        response = await jp_fetch("api", "sessions", session['id'], method="DELETE")
+        assert response.code == 204
 
         # Make sure the list is empty
-        response = await self.http_client.fetch(
-            self.get_url('/api/sessions')
-        )
-        self.assertEqual(response.code, 200)
+        response = await jp_fetch("api", "sessions", method="GET")
+        assert response.code == 200
         sessions = json_decode(response.body)
-        self.assertEqual(len(sessions), 0)
+        assert len(sessions) == 0
 
-    async def test_json_errors(self):
+    async def test_json_errors(self, jp_fetch):
         """Handlers should always return JSON errors."""
         # A handler that we override
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels'),
-            raise_error=False
-        )
-        body = json_decode(response.body)
-        self.assertEqual(response.code, 403)
-        self.assertEqual(body['reason'], 'Forbidden')
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("api", "kernels", method="GET")
+        assert e.value.response.code == 403
+
+        body = json_decode(e.value.response.body)
+        assert body['reason'] == 'Forbidden'
 
         # A handler from the notebook base
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels/1-2-3-4-5'),
-            raise_error=False
-        )
-        body = json_decode(response.body)
-        self.assertEqual(response.code, 404)
-        # Base handler json_errors decorator does not capture reason properly
-        # self.assertEqual(body['reason'], 'Not Found')
-        self.assertIn('1-2-3-4-5', body['message'])
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("api", "kernels", "1-2-3-4-5", method="GET")
+        assert e.value.response.code == 404
+
+        body = json_decode(e.value.response.body)
+        assert "1-2-3-4-5" in body['message']
 
         # The last resort not found handler
-        response = await self.http_client.fetch(
-            self.get_url('/fake-endpoint'),
-            raise_error=False
-        )
-        body = json_decode(response.body)
-        self.assertEqual(response.code, 404)
-        self.assertEqual(body['reason'], 'Not Found')
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("fake-endpoint", method="GET")
+        assert e.value.response.code == 404
 
-    async def test_kernel_env(self):
+        body = json_decode(e.value.response.body)
+        assert body["reason"] == "Not Found"
+
+    @pytest.mark.parametrize("jp_argv",
+                             (["--JupyterWebsocketPersonality.env_whitelist=TEST_VAR"],))
+    async def test_kernel_env(self, spawn_kernel, jp_web_app):
         """Kernel should start with environment vars defined in the request."""
-        self.app.personality.env_whitelist = ['TEST_VAR']
+        
         kernel_body = json.dumps({
-            'name': 'python',
-            'env': {
-                'KERNEL_FOO': 'kernel-foo-value',
-                'NOT_KERNEL': 'ignored',
-                'KERNEL_GATEWAY': 'overridden',
-                'TEST_VAR': 'allowed'
+            "name": "python",
+            "env": {
+                "KERNEL_FOO": "kernel-foo-value",
+                "NOT_KERNEL": "ignored",
+                "KERNEL_GATEWAY": "overridden",
+                "TEST_VAR": "allowed"
             }
         })
-        ws = await self.spawn_kernel(kernel_body)
-        req = self.execute_request('import os; print(os.getenv("KERNEL_FOO"), os.getenv("NOT_KERNEL"), os.getenv("KERNEL_GATEWAY"), os.getenv("TEST_VAR"))')
-        ws.write_message(json_encode(req))
-        content = await self.await_stream(ws)
-        self.assertEqual(content['name'], 'stdout')
-        self.assertIn('kernel-foo-value', content['text'])
-        self.assertNotIn('ignored', content['text'])
-        self.assertNotIn('overridden', content['text'])
-        self.assertIn('allowed', content['text'])
-
+        ws = await spawn_kernel(kernel_body)
+        req = get_execute_request('import os; print(os.getenv("KERNEL_FOO"), os.getenv("NOT_KERNEL"), os.getenv("KERNEL_GATEWAY"), os.getenv("TEST_VAR"))')
+        
+        await ws.write_message(json_encode(req))
+        content = await await_stream(ws)
+        
+        assert content["name"] == "stdout"
+        assert "kernel-foo-value" in content["text"]
+        assert "ignored" not in content["text"]
+        assert "overridden" not in content["text"]
+        assert "allowed" in content["text"]
         ws.close()
 
-    async def test_get_swagger_yaml_spec(self):
+    async def test_get_swagger_yaml_spec(self, jp_fetch):
         """Getting the swagger.yaml spec should be ok"""
-        response = await self.http_client.fetch(self.get_url('/api/swagger.yaml'))
-        self.assertEqual(response.code, 200)
+        response = await jp_fetch("api", "swagger.yaml", method="GET")
+        assert response.code == 200
 
-    async def test_get_swagger_json_spec(self):
+    async def test_get_swagger_json_spec(self, jp_fetch):
         """Getting the swagger.json spec should be ok"""
-        response = await self.http_client.fetch(self.get_url('/api/swagger.json'))
-        self.assertEqual(response.code, 200)
+        response = await jp_fetch("api", "swagger.json", method="GET")
+        assert response.code == 200
 
-    async def test_kernel_env_auth_token(self):
+    async def test_kernel_env_auth_token(self, monkeypatch, spawn_kernel):
         """Kernel should not have KG_AUTH_TOKEN in its environment."""
-        os.environ['KG_AUTH_TOKEN'] = 'fake-secret'
+        monkeypatch.setenv("KG_AUTH_TOKEN", "fake-secret")
 
+        ws = None
         try:
-            ws = await self.spawn_kernel()
-            req = self.execute_request('import os; print(os.getenv("KG_AUTH_TOKEN"))')
-            ws.write_message(json_encode(req))
-            content = await self.await_stream(ws)
-            self.assertNotIn('fake-secret', content['text'])
+            ws = await spawn_kernel()
+            req = get_execute_request("import os; print(os.getenv('KG_AUTH_TOKEN'))")
+            await ws.write_message(json_encode(req))
+            content = await await_stream(ws)
+            assert "fake-secret" not in content["text"]
         finally:
-            del os.environ['KG_AUTH_TOKEN']
-            ws.close()
+            if ws is not None:
+                ws.close()
 
 
-class TestCustomDefaultKernel(TestJupyterWebsocket):
+@pytest.mark.parametrize("jp_argv",
+                         ([f"--KernelGatewayApp.default_kernel_name=fake-kernel"],))
+class TestCustomDefaultKernel:
     """Tests gateway behavior when setting a custom default kernelspec."""
-    def setup_app(self):
-        self.app.default_kernel_name = 'fake-kernel'
-
-    async def test_default_kernel_name(self):
+    async def test_default_kernel_name(self, jp_fetch):
         """The default kernel name should be used on empty requests."""
         # Request without an explicit kernel name
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels'),
-            method='POST',
-            body='',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 500)
-        self.assertTrue('raise NoSuchKernel' in str(response.body))
+        with pytest.raises(HTTPClientError) as e:
+            response = await jp_fetch("api", "kernels", method="POST", body='')
+        assert e.value.response.code == 500
+        assert "raise NoSuchKernel" in str(e.value.response.body)
 
 
-class TestForceKernel(TestJupyterWebsocket):
+@pytest.mark.parametrize("jp_argv",
+                         (["--KernelGatewayApp.prespawn_count=2",
+                           f"--KernelGatewayApp.seed_uri={os.path.join(RESOURCES, 'zen.ipynb')}",
+                           "--KernelGatewayApp.force_kernel_name=python3"],))
+class TestForceKernel:
     """Tests gateway behavior when forcing a kernelspec."""
-    def setup_app(self):
-        self.app.prespawn_count = 2
-        self.app.seed_uri = os.path.join(RESOURCES,
-            'zen.ipynb')
-        self.app.force_kernel_name = 'python3'
-
-    async def test_force_kernel_name(self):
+    async def test_force_kernel_name(self, jp_fetch):
         """Should create a Python kernel."""
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels'),
-            method='POST',
-            body='{"name": "fake-kernel"}',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 201)
-        body = json.loads(response.body)
-        self.assertEqual(body["name"], self.app.force_kernel_name)
+        response = await jp_fetch("api", "kernels", method="POST", body='{"name": "fake-kernel"}')
+        assert response.code == 201
+        kernel = json_decode(response.body)
+        assert kernel["name"] == "python3"
 
 
-class TestEnableDiscovery(TestJupyterWebsocket):
+class TestEnableDiscovery:
     """Tests gateway behavior with kernel listing enabled."""
-    def setup_configurables(self):
-        """Enables kernel listing for all tests."""
-        self.app.personality.list_kernels = True
-
-    async def test_enable_kernel_list(self):
+    @pytest.mark.parametrize("jp_argv", (["--JupyterWebsocketPersonality.list_kernels=True"],))
+    async def test_enable_kernel_list(self, jp_fetch, jp_argv):
         """The list of kernels, sessions, and activities should be available."""
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels'),
-        )
-        self.assertEqual(response.code, 200)
-        self.assertTrue('[]' in str(response.body))
-        response = await self.http_client.fetch(
-            self.get_url('/api/sessions'),
-        )
-        self.assertEqual(response.code, 200)
-        self.assertTrue('[]' in str(response.body))
+
+        response = await jp_fetch("api", "kernels", method="GET")
+        assert response.code == 200
+        assert '[]' in str(response.body)
+
+        response = await jp_fetch("api", "sessions", method="GET")
+        assert response.code == 200
+        assert '[]' in str(response.body)
 
 
-class TestPrespawnKernels(TestJupyterWebsocket):
+class TestPrespawnKernels:
     """Tests gateway behavior when kernels are spawned at startup."""
-    def setup_app(self):
-        """Always prespawn 2 kernels."""
-        self.app.prespawn_count = 2
-
-    async def test_prespawn_count(self):
+    @pytest.mark.parametrize("jp_argv", (["--KernelGatewayApp.prespawn_count=2"],))
+    async def test_prespawn_count(self, jp_fetch, jp_web_app, jp_argv):
         """Server should launch the given number of kernels on startup."""
-        self.app.web_app.settings['kg_list_kernels'] = True
-        # await sleep(0.5)
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels')
-        )
-        self.assertEqual(response.code, 200)
+        jp_web_app.settings['kg_list_kernels'] = True
+        await sleep(0.5)
+        response = await jp_fetch("api", "kernels", method="GET")
+        assert response.code == 200
+
         kernels = json_decode(response.body)
-        self.assertEqual(len(kernels), 2)
+        assert len(kernels) == 2
 
     def test_prespawn_max_conflict(self):
-        """Server should error if prespawn count is greater than max allowed
-        kernels.
-        """
+        """Server should error if prespawn count is greater than max allowed kernels."""
         app = KernelGatewayApp()
         app.prespawn_count = 3
         app.max_kernels = 2
-        self.assertRaises(RuntimeError, app.init_configurables)
+        with pytest.raises(RuntimeError) as e:
+            app.init_configurables()
 
 
-class TestBaseURL(TestJupyterWebsocket):
+class TestBaseURL:
     """Tests gateway behavior when a custom base URL is configured."""
-    def setup_app(self):
-        """Sets the custom base URL and enables kernel listing."""
-        self.app.base_url = '/fake/path'
-
-    def setup_configurables(self):
-        """Enables kernel listing for all tests."""
-        self.app.personality.list_kernels = True
-
-    async def test_base_url(self):
+    @pytest.mark.parametrize("jp_argv", (["--JupyterWebsocketPersonality.list_kernels=True"],))
+    @pytest.mark.parametrize("jp_base_url", ("/fake/path",))
+    async def test_base_url(self, jp_base_url, jp_argv, jp_fetch):
         """Server should mount resources under configured base."""
-        # Should not exist at root
-        #  await sleep(0.5)
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels'),
-            method='GET',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 404)
-
         # Should exist under path
-        response = await self.http_client.fetch(
-            self.get_url('/fake/path/api/kernels'),
-            method='GET'
-        )
-        self.assertEqual(response.code, 200)
+        response = await jp_fetch("api", "kernels", method="GET")
+        assert response.code == 200
+        assert "/fake/path/api/kernels" in response.effective_url
 
 
-class TestRelativeBaseURL(TestJupyterWebsocket):
+class TestRelativeBaseURL:
     """Tests gateway behavior when a relative base URL is configured."""
-    def setup_app(self):
-        """Sets the custom base URL as a relative path."""
-        self.app.base_url = 'fake/path'
-
-    async def test_base_url(self):
+    @pytest.mark.parametrize("jp_argv", (["--JupyterWebsocketPersonality.list_kernels=True"],))
+    @pytest.mark.parametrize("jp_base_url", ("/fake/path",))
+    async def test_base_url(self, jp_base_url, jp_argv, jp_fetch):
         """Server should mount resources under fixed base."""
-        self.app.web_app.settings['kg_list_kernels'] = True
 
         # Should exist under path
-        response = await self.http_client.fetch(
-            self.get_url('/fake/path/api/kernels'),
-            method='GET'
-        )
-        self.assertEqual(response.code, 200)
+        response = await jp_fetch("api", "kernels", method="GET")
+        assert response.code == 200
+        assert "/fake/path/api/kernels" in response.effective_url
 
 
-class TestSeedURI(TestJupyterWebsocket):
-    """Tests gateway behavior when a seeding kernel memory with code from a
-    notebook."""
-    def setup_app(self):
-        self.app.seed_uri = os.path.join(RESOURCES,
-            'zen.ipynb')
-
-    async def test_seed(self):
+class TestSeedURI:
+    """Tests gateway behavior when a seeding kernel memory with code from a notebook."""
+    @pytest.mark.parametrize("jp_argv",
+                             ([f"--KernelGatewayApp.seed_uri={os.path.join(RESOURCES, 'zen.ipynb')}"],))
+    async def test_seed(self, jp_argv, spawn_kernel):
         """Kernel should have variables preseeded from the notebook."""
-        ws = await self.spawn_kernel()
+        ws = await spawn_kernel()
 
         # Print the encoded "zen of python" string, the kernel should have
         # it imported
-        req = self.execute_request('print(this.s)')
-        ws.write_message(json_encode(req))
-        content = await self.await_stream(ws)
-        self.assertEqual(content['name'], 'stdout')
-        self.assertIn('Gur Mra bs Clguba', content['text'])
+        req = get_execute_request("print(this.s)")
+        await ws.write_message(json_encode(req))
+        content = await await_stream(ws)
+        assert content["name"] == "stdout"
+        assert "Gur Mra bs Clguba" in content["text"]
 
         ws.close()
 
 
-class TestRemoteSeedURI(TestSeedURI):
-    """Tests gateway behavior when a seeding kernel memory with code from a
-    remote notebook.
-    """
-    def setup_app(self):
-        """Sets the seed notebook to a remote notebook."""
-        self.app.seed_uri = 'https://gist.githubusercontent.com/parente/ccd36bd7db2f617d58ce/raw/zen3.ipynb'
+class TestRemoteSeedURI:
+    """Tests gateway behavior when a seeding kernel memory with code from a remote notebook."""
+    @pytest.mark.parametrize("jp_argv",
+                             ([f"--KernelGatewayApp.seed_uri="
+                               f"https://gist.githubusercontent.com/parente/ccd36bd7db2f617d58ce/raw/zen3.ipynb"],))
+    async def test_seed(self, jp_argv, spawn_kernel):
+        """Kernel should have variables preseeded from the notebook."""
+        ws = await spawn_kernel()
+
+        # Print the encoded "zen of python" string, the kernel should have
+        # it imported
+        req = get_execute_request("print(this.s)")
+        await ws.write_message(json_encode(req))
+        content = await await_stream(ws)
+        assert content["name"] == "stdout"
+        assert "Gur Mra bs Clguba" in content["text"]
+
+        ws.close()
 
 
-class TestBadSeedURI(TestJupyterWebsocket):
-    """Tests gateway behavior when seeding kernel memory with notebook code
-    that fails.
-    """
-    def setup_app(self):
-        """Sets the seed notebook to one of the test resources."""
-        self.app.seed_uri = os.path.join(RESOURCES,
-            'failing_code.ipynb')
-
-    async def test_seed_error(self):
+class TestBadSeedURI:
+    """Tests gateway behavior when seeding kernel memory with notebook code that fails."""
+    @pytest.mark.parametrize("jp_argv",
+                             ([f"--KernelGatewayApp.seed_uri={os.path.join(RESOURCES, 'failing_code.ipynb')}",
+                               "--JupyterWebsocketPersonality.list_kernels=True"],))
+    async def test_seed_error(self, jp_argv, jp_fetch):
         """
         Server should shutdown kernel and respond with error when seed notebook
         has an execution error.
         """
-        self.app.web_app.settings['kg_list_kernels'] = True
 
         # Request a kernel
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels'),
-            method='POST',
-            body='{}',
-            raise_error=False
-        )
-        self.assertEqual(response.code, 500)
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("api", "kernels", method='POST', body='{}')
+        assert e.value.response.code == 500
 
         # No kernels should be running
-        response = await self.http_client.fetch(
-            self.get_url('/api/kernels'),
-            method='GET'
-        )
+        response = await jp_fetch("api", "kernels", method="GET")
+        assert response.code == 200
         kernels = json_decode(response.body)
-        self.assertEqual(len(kernels), 0)
+        assert len(kernels) == 0
 
-    def test_seed_kernel_failing(self):
+    @pytest.mark.parametrize("jp_argv",
+                             ([f"--KernelGatewayApp.seed_uri={os.path.join(RESOURCES, 'failing_code.ipynb')}",
+                               "--JupyterWebsocketPersonality.list_kernels=True",
+                               "--JupyterWebsocketPersonality.prespawn_count=1"],))
+    async def test_seed_kernel_failing(self, jp_argv, jp_fetch):
         """
-        Server should error because seed notebook requires a kernel that is not
-        installed.
+        Server should error because seed notebook has an error.
         """
-        app = KernelGatewayApp()
-        app.init_io_loop()
-        app.prespawn_count = 1
-        app.seed_uri = os.path.join(RESOURCES, 'failing_code.ipynb')
-        self.assertRaises(RuntimeError, app.init_configurables)
+        with pytest.raises(HTTPClientError) as e:
+            await jp_fetch("api", "kernels", method='POST', body='{}')
+        assert e.value.response.code == 500
 
     def test_seed_kernel_not_available(self):
         """
@@ -762,30 +612,25 @@ class TestBadSeedURI(TestJupyterWebsocket):
         """
         app = KernelGatewayApp()
         app.seed_uri = os.path.join(RESOURCES, 'unknown_kernel.ipynb')
-        self.assertRaises(NoSuchKernel, app.init_configurables)
+        with pytest.raises(NoSuchKernel):
+            app.init_configurables()
 
 
-class TestKernelLanguageSupport(TestJupyterWebsocket):
+@pytest.mark.parametrize("jp_argv",
+                         ([f"--KernelGatewayApp.seed_uri={os.path.join(RESOURCES, 'zen.ipynb')}",
+                           "--JupyterWebsocketPersonality.prespawn_count=1"],))
+class TestKernelLanguageSupport:
     """Tests gateway behavior when a client requests a specific kernel spec."""
-    def setup_app(self):
-        """Sets the app to prespawn one kernel and preseed it with one of the
-        test notebooks.
-        """
-        self.app.prespawn_count = 1
-        self.app.seed_uri = os.path.join(RESOURCES,
-            'zen.ipynb')
-
-    async def test_seed_language_support(self):
+    async def test_seed_language_support(self, jp_argv, spawn_kernel):
         """Kernel should have variables preseeded from notebook."""
-        ws = await self.spawn_kernel(kernel_body=json.dumps({"name": "python3"}))
+        ws = await spawn_kernel(body=json.dumps({"name": "python3"}))
         code = 'print(this.s)'
 
-        # Print the encoded "zen of python" string, the kernel should have
-        # it imported
-        req = self.execute_request(code)
-        ws.write_message(json_encode(req))
-        content = await self.await_stream(ws)
-        self.assertEqual(content['name'], 'stdout')
-        self.assertIn('Gur Mra bs Clguba', content['text'])
+        # Print the encoded "zen of python" string, the kernel should have it imported
+        req = get_execute_request(code)
+        await ws.write_message(json_encode(req))
+        content = await await_stream(ws)
+        assert content['name'] == 'stdout'
+        assert 'Gur Mra bs Clguba' in content['text']
 
         ws.close()

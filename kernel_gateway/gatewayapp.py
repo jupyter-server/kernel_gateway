@@ -706,7 +706,8 @@ class KernelGatewayApp(JupyterApp):
 
     async def async_shutdown(self):
         """Stop all kernels in the pool."""
-        await self.personality.shutdown()
+        if hasattr(self, "personality"):
+            await self.personality.shutdown()
 
 
 launch_instance = KernelGatewayApp.launch_instance

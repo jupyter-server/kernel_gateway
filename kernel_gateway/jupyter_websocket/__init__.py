@@ -46,7 +46,6 @@ class JupyterWebsocketPersonality(LoggingConfigurable):
         self.kernel_pool = KernelPool()
 
     async def init_configurables(self):
-        self.log.error("Here we are in JupyterWebsocketPersonality.init_configurables!")
         await self.kernel_pool.initialize(
             self.parent.prespawn_count,
             self.parent.kernel_manager
