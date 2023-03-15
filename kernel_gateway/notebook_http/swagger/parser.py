@@ -95,10 +95,10 @@ class SwaggerCellParser(LoggingConfigurable):
                         operationIdsDeclared.append(operationId)
             for operationId in operationIdsDeclared:
                 if operationId not in operationIdsFound:
-                    self.log.warning('Operation {} was declared but not referenced in a cell'.format(operationId))
+                    self.log.warning(f'Operation {operationId} was declared but not referenced in a cell')
             for operationId in operationIdsFound:
                 if operationId not in operationIdsDeclared:
-                    self.log.warning('Operation {} was referenced in a cell but not declared'.format(operationId))
+                    self.log.warning(f'Operation {operationId} was referenced in a cell but not declared')
         else:
             self.log.warning('No paths documented in Swagger documentation')
 

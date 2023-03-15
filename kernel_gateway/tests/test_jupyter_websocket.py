@@ -392,7 +392,7 @@ class TestDefaults:
 
     @pytest.mark.parametrize("jp_argv",
                              (["--JupyterWebsocketPersonality.env_whitelist=TEST_VAR"],))
-    async def test_kernel_env(self, spawn_kernel, jp_web_app):
+    async def test_kernel_env(self, spawn_kernel, jp_argv):
         """Kernel should start with environment vars defined in the request."""
         
         kernel_body = json.dumps({
@@ -447,7 +447,7 @@ class TestDefaults:
                          ([f"--KernelGatewayApp.default_kernel_name=fake-kernel"],))
 class TestCustomDefaultKernel:
     """Tests gateway behavior when setting a custom default kernelspec."""
-    async def test_default_kernel_name(self, jp_fetch):
+    async def test_default_kernel_name(self, jp_argv, jp_fetch):
         """The default kernel name should be used on empty requests."""
         # Request without an explicit kernel name
         with pytest.raises(HTTPClientError) as e:
@@ -462,7 +462,7 @@ class TestCustomDefaultKernel:
                            "--KernelGatewayApp.force_kernel_name=python3"],))
 class TestForceKernel:
     """Tests gateway behavior when forcing a kernelspec."""
-    async def test_force_kernel_name(self, jp_fetch):
+    async def test_force_kernel_name(self, jp_argv, jp_fetch):
         """Should create a Python kernel."""
         response = await jp_fetch("api", "kernels", method="POST", body='{"name": "fake-kernel"}')
         assert response.code == 201

@@ -69,7 +69,7 @@ class APICellParser(LoggingConfigurable):
     api_indicator = Unicode(default_value=r'{}\s+(GET|PUT|POST|DELETE)\s+(\/.*)+')
     api_response_indicator = Unicode(default_value=r'{}\s+ResponseInfo\s+(GET|PUT|POST|DELETE)\s+(\/.*)+')
 
-    def __init__(self, comment_prefix, notebook_cells, **kwargs):
+    def __init__(self, comment_prefix, notebook_cells=None, **kwargs):
         super().__init__(**kwargs)
         self.kernelspec_api_indicator = re.compile(self.api_indicator.format(comment_prefix))
         self.kernelspec_api_response_indicator = re.compile(self.api_response_indicator.format(comment_prefix))
