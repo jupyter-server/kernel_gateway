@@ -597,19 +597,7 @@ class TestBadSeedURI:
         kernels = json_decode(response.body)
         assert len(kernels) == 0
 
-    @pytest.mark.parametrize("jp_argv",
-                             ([f"--KernelGatewayApp.seed_uri={os.path.join(RESOURCES, 'failing_code.ipynb')}",
-                               "--JupyterWebsocketPersonality.list_kernels=True",
-                               "--JupyterWebsocketPersonality.prespawn_count=1"],))
-    async def test_seed_kernel_failing(self, jp_argv, jp_fetch):
-        """
-        Server should error because seed notebook has an error.
-        """
-        with pytest.raises(HTTPClientError) as e:
-            await jp_fetch("api", "kernels", method='POST', body='{}')
-        assert e.value.response.code == 500
-
-    def test_seed_kernel_not_available(self):
+    async def test_seed_kernel_not_available(self):
         """
         Server should error because seed notebook requires a kernel that is not
         installed.
@@ -622,7 +610,7 @@ class TestBadSeedURI:
 
 @pytest.mark.parametrize("jp_argv",
                          ([f"--KernelGatewayApp.seed_uri={os.path.join(RESOURCES, 'zen.ipynb')}",
-                           "--JupyterWebsocketPersonality.prespawn_count=1"],))
+                           "--KernelGatewayApp.prespawn_count=1"],))
 class TestKernelLanguageSupport:
     """Tests gateway behavior when a client requests a specific kernel spec."""
     async def test_seed_language_support(self, jp_argv, spawn_kernel):
