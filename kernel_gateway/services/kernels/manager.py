@@ -101,13 +101,16 @@ class SeedingMappingKernelManager(AsyncMappingKernelManager):
                     # executed
                     if self.parent.personality.should_seed_cell(code):
                         client.execute(code)
-                        msg = await client.get_shell_msg()
-                        if msg['content']['status'] != 'ok':
-                            # Shutdown the channels to remove any lingering ZMQ messages
-                            client.stop_channels()
-                            # Shutdown the kernel
-                            await self.shutdown_kernel(kernel_id)
-                            raise RuntimeError('Error seeding kernel memory', msg['content'])
+                        msg_type = "kernel_info_reply"
+                        while msg_type == "kernel_info_reply":
+                            msg = await client.get_shell_msg()
+                            msg_type = msg['msg_type']
+                            if msg['content']['status'] != 'ok':
+                                # Shutdown the channels to remove any lingering ZMQ messages
+                                client.stop_channels()
+                                # Shutdown the kernel
+                                await self.shutdown_kernel(kernel_id)
+                                raise RuntimeError('Error seeding kernel memory', msg['content'])
                 # Shutdown the channels to remove any lingering ZMQ messages
                 client.stop_channels()
         return kernel_id
