@@ -61,7 +61,6 @@ def jp_configurable_serverapp(
             config=config,
             **kwargs,
         )
-        app.init_signal = lambda: None
         app.log.propagate = True
         app.log.handlers = []
         # Initialize app without httpserver

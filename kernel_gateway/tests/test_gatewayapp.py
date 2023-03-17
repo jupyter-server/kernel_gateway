@@ -1,6 +1,7 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
 """Tests for basic gateway app behavior."""
+import ssl
 
 import nbformat
 import os
@@ -76,10 +77,31 @@ class TestGatewayAppConfig:
         app = KernelGatewayApp()
         ssl_options = app._build_ssl_options()
         assert ssl_options is None
-        app = KernelGatewayApp()
+        KernelGatewayApp.clear_instance()
+
+        # Set all options
         monkeypatch.setenv("KG_CERTFILE", "/test/fake.crt")
+        monkeypatch.setenv("KG_KEYFILE", "/test/fake.key")
+        monkeypatch.setenv("KG_CLIENT_CA", "/test/fake.ca")
+        monkeypatch.setenv("KG_SSL_VERSION", "42")
+        app = KernelGatewayApp()
         ssl_options = app._build_ssl_options()
-        assert ssl_options["ssl_version"] == 5
+        assert ssl_options["certfile"] == "/test/fake.crt"
+        assert ssl_options["keyfile"] == "/test/fake.key"
+        assert ssl_options["ca_certs"] == "/test/fake.ca"
+        assert ssl_options["cert_reqs"] == ssl.CERT_REQUIRED
+        assert ssl_options["ssl_version"] == 42
+        KernelGatewayApp.clear_instance()
+
+        # Set few options
+        monkeypatch.delenv("KG_KEYFILE")
+        monkeypatch.delenv("KG_CLIENT_CA")
+        monkeypatch.delenv("KG_SSL_VERSION")
+        app = KernelGatewayApp()
+        ssl_options = app._build_ssl_options()
+        assert ssl_options["certfile"] == "/test/fake.crt"
+        assert ssl_options["ssl_version"] == ssl.PROTOCOL_TLSv1_2
+        assert "cert_reqs" not in ssl_options
         KernelGatewayApp.clear_instance()
 
     def test_load_notebook_local(self, monkeypatch):
