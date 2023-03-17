@@ -696,4 +696,3 @@ class TestSessionApi:
             kwargs = {"session_id": session_id}
             sm.get_session(**kwargs)
         assert e.value.status_code == 404
-
