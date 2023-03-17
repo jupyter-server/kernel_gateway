@@ -5,6 +5,7 @@
 import json
 import os
 import pytest
+import uuid
 
 from jupyter_client.kernelspec import NoSuchKernel
 from tornado.gen import sleep
@@ -12,9 +13,12 @@ from tornado.websocket import websocket_connect
 from tornado.httpclient import HTTPRequest
 from tornado.httpclient import HTTPClientError
 from tornado.escape import json_encode, json_decode, url_escape
+from tornado.web import HTTPError
 from traitlets.config import Config
 
 from kernel_gateway.gatewayapp import KernelGatewayApp
+from kernel_gateway.services.kernels.manager import AsyncMappingKernelManager
+from kernel_gateway.services.sessions.sessionmanager import SessionManager
 from .test_gatewayapp import RESOURCES
 
 
@@ -634,3 +638,62 @@ class TestKernelLanguageSupport:
         assert 'Gur Mra bs Clguba' in content['text']
 
         ws.close()
+
+
+class TestSessionApi:
+    """Test session object API to improve coverage."""
+
+    async def test_session_api(self, tmp_path, jp_environ):
+
+        # Create the manager instances
+        akm = AsyncMappingKernelManager()
+        sm = SessionManager(akm)
+
+        row_model = await sm.create_session(path=str(tmp_path), kernel_name="python3")
+        assert "id" in row_model
+        assert "kernel" in row_model
+        assert row_model["notebook"]["path"] == str(tmp_path)
+
+        session_id = row_model["id"]
+        kernel_id = row_model["kernel"]["id"]
+
+        # Perform some get_session tests
+        with pytest.raises(TypeError):
+            sm.get_session()  # no kwargs
+
+        with pytest.raises(TypeError):
+            kwargs = {"bogus_column": 1}
+            sm.get_session(**kwargs)  # bad column
+
+        non_existent_session_id = uuid.uuid4()
+        with pytest.raises(HTTPError) as e:
+            kwargs = {"session_id": str(non_existent_session_id)}
+            sm.get_session(**kwargs)  # bad session id
+        assert e.value.status_code == 404
+
+        # Perform some update_session tests
+        sm.update_session(session_id)  # no kwargs - success expected
+
+        with pytest.raises(KeyError):
+            kwargs = {"kernel_id": kernel_id}
+            sm.update_session(str(non_existent_session_id), **kwargs)  # bad session id
+
+        kwargs = {"path": "/tmp"}
+        sm.update_session(session_id, **kwargs)  # update path of session
+
+        # confirm update
+        kwargs = {"session_id": session_id}
+        row_model = sm.get_session(**kwargs)
+        assert row_model["notebook"]["path"] == "/tmp"
+
+        kwargs = {"kernel_id": str(uuid.uuid4())}
+        with pytest.raises(KeyError):
+            sm.update_session(session_id, **kwargs)  # bad kernel_id
+
+        await sm.delete_session(session_id)
+
+        with pytest.raises(HTTPError) as e:
+            kwargs = {"session_id": session_id}
+            sm.get_session(**kwargs)
+        assert e.value.status_code == 404
+

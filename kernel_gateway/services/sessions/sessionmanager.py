@@ -186,6 +186,10 @@ class SessionManager(LoggingConfigurable):
         if not row:
             raise KeyError
 
+        # if kernel_id is in kwargs, validate it prior to removing the row...
+        if 'kernel_id' in kwargs and kwargs['kernel_id'] not in self.kernel_manager:
+            raise KeyError(f"Kernel '{kwargs['kernel_id']}' does not exist.")
+
         self._sessions.remove(row)
 
         if 'path' in kwargs:
