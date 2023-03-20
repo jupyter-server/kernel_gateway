@@ -2,6 +2,7 @@
 # Distributed under the terms of the Modified BSD License.
 """Tests for notebook-http mode."""
 
+import asyncio
 import os
 import json
 import pytest
@@ -227,25 +228,17 @@ class TestKernelPool:
             else:
                 assert response.body == b"hola {}\n", "Unexpected body in response to GET after performing PUT."
 
+    @pytest.mark.timeout(10)
     async def test_concurrent_request_should_not_be_blocked(self, jp_fetch, jp_argv):
         """Concurrent requests should not be blocked"""
         response_long_running = jp_fetch("sleep", "6", method="GET")
-        if callable(getattr(response_long_running, "done", "")):
-            # Tornado 5
-            assert response_long_running.done() is False, "Long HTTP Request is not running"
-        else:
-            # Tornado 4
-            assert response_long_running.running() is True, "Long HTTP Request is not running"
+        assert response_long_running.done() is False, "Long HTTP Request is not running"
 
         response_short_running = await jp_fetch("sleep", "3", method="GET")
-        if callable(getattr(response_long_running, "done", "")):
-            # Tornado 5
-            assert response_long_running.done() is False, "Long HTTP Request is not running"
-        else:
-            # Tornado 4
-            assert response_long_running.running() is True, "Long HTTP Request is not running"
-
         assert response_short_running.code == 200, "Short HTTP Request did not return proper status code of 200"
+        assert response_long_running.done() is False, "Long HTTP Request is not running"
+        while not response_long_running.done():
+            await asyncio.sleep(0.3)  # let the long request complete
 
     async def test_locking_semaphore_of_kernel_resources(self, jp_fetch, jp_argv):
         """Kernel pool should prevent more than one request from running on a kernel at a time.
