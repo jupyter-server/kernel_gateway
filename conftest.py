@@ -1,14 +1,12 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
 
+import os
 import logging
 import pytest
-
-from jupyter_server import version_info as jupyter_server_version
-
+from binascii import hexlify
+from traitlets.config import Config
 from kernel_gateway.gatewayapp import KernelGatewayApp
-
-is_v2 = jupyter_server_version[0] == 2
 
 pytest_plugins = ["pytest_jupyter.jupyter_core", "pytest_jupyter.jupyter_server"]
 
@@ -45,20 +43,22 @@ def jp_configurable_serverapp(
         config=jp_server_config,
         base_url=jp_base_url,
         argv=jp_argv,
-        environ=jp_environ,
         http_port=jp_http_port,
-        tmp_path=tmp_path,
-        io_loop=io_loop,
-        root_dir=jp_root_dir,
         **kwargs,
     ):
+        c = Config(config)
+
+        if "auth_token" not in c.KernelGatewayApp and not c.IdentityProvider.token:
+            default_token = hexlify(os.urandom(4)).decode("ascii")
+            c.IdentityProvider.token = default_token
+
         app = KernelGatewayApp.instance(
             # Set the log level to debug for testing purposes
             log_level="DEBUG",
-            port=jp_http_port,
+            port=http_port,
             port_retries=0,
             base_url=base_url,
-            config=config,
+            config=c,
             **kwargs,
         )
         app.log.propagate = True
@@ -101,6 +101,4 @@ def jp_server_cleanup(jp_asyncio_loop):
 @pytest.fixture
 def jp_auth_header(jp_serverapp):
     """Configures an authorization header using the token from the serverapp fixture."""
-    if not is_v2:
-        return {"Authorization": f"token {jp_serverapp.auth_token}"}
     return {"Authorization": f"token {jp_serverapp.identity_provider.token}"}

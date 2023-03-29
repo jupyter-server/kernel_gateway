@@ -15,17 +15,25 @@ class CORSMixin(object):
         'kg_allow_headers': 'Access-Control-Allow-Headers',
         'kg_allow_methods': 'Access-Control-Allow-Methods',
         'kg_allow_origin': 'Access-Control-Allow-Origin',
-        'kg_expose_headers' : 'Access-Control-Expose-Headers',
+        'kg_expose_headers': 'Access-Control-Expose-Headers',
         'kg_max_age': 'Access-Control-Max-Age'
     }
 
-    def set_default_headers(self):
+    def set_cors_headers(self):
         """Sets the CORS headers as the default for all responses.
 
         Disables CSP configured by the notebook package. It's not necessary
         for a programmatic API.
+
+        Notes
+        -----
+        This method name was changed from set_default_headers to set_cors_header
+        when adding support for JupyterServer 2.x.  In that release, JS changed the
+        way the headers were implemented due to changes in the way a user is authenticated.
+        See https://github.com/jupyter-server/jupyter_server/pull/671.
         """
-        super(CORSMixin, self).set_default_headers()
+        super().set_cors_headers()
+
         # Add CORS headers after default if they have a non-blank value
         for settings_name, header_name in self.SETTINGS_TO_HEADERS.items():
             header_value = self.settings.get(settings_name)
@@ -75,7 +83,7 @@ class TokenAuthorizationMixin(object):
                     client_token = None
             if client_token != server_token:
                 return self.send_error(401)
-        return super(TokenAuthorizationMixin, self).prepare()
+        return super().prepare()
 
 
 class JSONErrorsMixin(object):

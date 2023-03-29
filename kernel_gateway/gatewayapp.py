@@ -6,6 +6,8 @@ import asyncio
 import errno
 import importlib
 import logging
+import hashlib
+import hmac
 import os
 import sys
 import signal
@@ -13,35 +15,37 @@ import select
 import socket
 import ssl
 import threading
+from base64 import encodebytes
 from distutils.util import strtobool
 
 import nbformat
 from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
 
 from urllib.parse import urlparse
-from traitlets import Unicode, Integer, default, observe, Type, Instance, List, CBool
+from traitlets import Unicode, Integer, Bytes, default, observe, Type, Instance, List, CBool
 
 from jupyter_core.application import JupyterApp, base_aliases
-from jupyter_core.utils import run_sync
 from jupyter_client.kernelspec import KernelSpecManager
 
 from tornado import httpserver
 from tornado import web, ioloop
 from tornado.log import enable_pretty_logging, LogFormatter
 
+from jupyter_core.paths import secure_write
 from jupyter_server.serverapp import random_ports
 from ._version import __version__
 from .services.sessions.sessionmanager import SessionManager
 from .services.kernels.manager import SeedingMappingKernelManager
 
+from .auth.identity import GatewayIdentityProvider
+
 # Only present for generating help documentation
 from .notebook_http import NotebookHTTPPersonality
 from .jupyter_websocket import JupyterWebsocketPersonality
 
-try:
-    from jupyter_server.auth.authorizer import AllowAllAuthorizer
-except ImportError:
-    AllowAllAuthorizer = object
+from jupyter_server.auth.authorizer import AllowAllAuthorizer, Authorizer
+from jupyter_server.services.kernels.connection.base import BaseKernelWebsocketConnection
+from jupyter_server.services.kernels.connection.channels import ZMQChannelsWebsocketConnection
 
 
 # Add additional command line aliases
@@ -311,6 +315,51 @@ class KernelGatewayApp(JupyterApp):
         ssl_from_env = os.getenv(self.ssl_version_env)
         return ssl_from_env if ssl_from_env is None else int(ssl_from_env)
 
+    cookie_secret_file = Unicode(
+        config=True, help="""The file where the cookie secret is stored."""
+    )
+
+    @default("cookie_secret_file")
+    def _default_cookie_secret_file(self):
+        return os.path.join(self.runtime_dir, "jupyter_cookie_secret")
+
+    cookie_secret = Bytes(
+        b"",
+        config=True,
+        help="""The random bytes used to secure cookies.
+        By default this is a new random number every time you start the server.
+        Set it to a value in a config file to enable logins to persist across server sessions.
+
+        Note: Cookie secrets should be kept private, do not share config files with
+        cookie_secret stored in plaintext (you can read the value from a file).
+        """,
+    )
+
+    @default("cookie_secret")
+    def _default_cookie_secret(self):
+        if os.path.exists(self.cookie_secret_file):
+            with open(self.cookie_secret_file, "rb") as f:
+                key = f.read()
+        else:
+            key = encodebytes(os.urandom(32))
+            self._write_cookie_secret_file(key)
+        h = hmac.new(key, digestmod=hashlib.sha256)
+        # h.update(self.password.encode())  # password is deprecated in 2.0
+        return h.digest()
+
+    def _write_cookie_secret_file(self, secret):
+        """write my secret to my secret_file"""
+        self.log.info("Writing Jupyter server cookie secret to %s", self.cookie_secret_file)
+        try:
+            with secure_write(self.cookie_secret_file, True) as f:
+                f.write(secret)
+        except OSError as e:
+            self.log.error(
+                "Failed to write cookie secret to %s: %s",
+                self.cookie_secret_file,
+                e,
+            )
+
     ws_ping_interval_env = "KG_WS_PING_INTERVAL_SECS"
     ws_ping_interval_default_value = 30
     ws_ping_interval = Integer(
@@ -350,6 +399,27 @@ class KernelGatewayApp(JupyterApp):
         default_value=SeedingMappingKernelManager,
         config=True,
         help="""The kernel manager class to use."""
+    )
+
+    kernel_websocket_connection_class = Type(
+        default_value=ZMQChannelsWebsocketConnection,
+        klass=BaseKernelWebsocketConnection,
+        config=True,
+        help="""The kernel websocket connection class to use.""",
+    )
+
+    authorizer_class = Type(
+        default_value=AllowAllAuthorizer,
+        klass=Authorizer,
+        config=True,
+        help="The authorizer class to use.",
+    )
+
+    identity_provider_class = Type(
+        default_value=GatewayIdentityProvider,
+        klass=GatewayIdentityProvider,
+        config=True,
+        help="The identity provider class to use.",
     )
 
     def _load_api_module(self, module_name):
@@ -467,6 +537,12 @@ class KernelGatewayApp(JupyterApp):
         )
         self.contents_manager = None
 
+        self.identity_provider = self.identity_provider_class(parent=self, log=self.log)
+
+        self.authorizer = self.authorizer_class(
+            parent=self, log=self.log, identity_provider=self.identity_provider
+        )
+
         if self.prespawn_count:
             if self.max_kernels and self.prespawn_count > self.max_kernels:
                 msg = f"Cannot prespawn {self.prespawn_count} kernels; more than max kernels {self.max_kernels}"
@@ -514,13 +590,17 @@ class KernelGatewayApp(JupyterApp):
             allow_origin=self.allow_origin,
             # Set base_url for use in request handlers
             base_url=self.base_url,
+            # Authentication
+            cookie_secret=self.cookie_secret,
             # Always allow remote access (has been limited to localhost >= notebook 5.6)
             allow_remote_access=True,
             # setting ws_ping_interval value that can allow it to be modified for the purpose of toggling ping mechanism
             # for zmq web-sockets or increasing/decreasing web socket ping interval/timeouts.
             ws_ping_interval=self.ws_ping_interval * 1000,
             # Add a pass-through authorizer for now
-            authorizer=AllowAllAuthorizer(),
+            authorizer=self.authorizer_class(parent=self),
+            identity_provider=self.identity_provider,
+            kernel_websocket_connection_class=self.kernel_websocket_connection_class,
         )
 
         # promote the current personality's "config" tagged traitlet values to webapp settings
@@ -684,6 +764,7 @@ class KernelGatewayApp(JupyterApp):
     async def _stop(self):
         """Cleanup resources and stop the IO Loop."""
         await self.personality.shutdown()
+        await self.kernel_websocket_connection_class.close_all()
         if getattr(self, "io_loop", None):
             self.io_loop.stop()
 
