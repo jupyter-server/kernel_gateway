@@ -6,8 +6,9 @@ This defines the _authentication_ layer of Jupyter Server,
 to be used in combination with Authorizer for _authorization_.
 """
 from traitlets import default
+from tornado import web
 
-from jupyter_server.auth.identity import IdentityProvider
+from jupyter_server.auth.identity import IdentityProvider, User
 from jupyter_server.base.handlers import JupyterHandler
 
 
@@ -15,15 +16,16 @@ class GatewayIdentityProvider(IdentityProvider):
     """
     Interface for providing identity management and authentication for a Gateway server.
     """
+
     @default("token")
     def _token_default(self):
-        # if the superclass generated a token, but auth_token is configured on
-        # the Gateway server, reset token_generated and use the configured value.
-        token_default = super()._token_default()
-        if self.token_generated and self.parent.auth_token:
-            self.token_generated = False
-            return self.parent.auth_token
-        return token_default
+        return self.parent.auth_token
+
+    @property
+    def auth_enabled(self):
+        if not self.token:
+            return False
+        return True
 
     def should_check_origin(self, handler: JupyterHandler) -> bool:
         """Should the Handler check for CORS origin validation?
@@ -36,3 +38,21 @@ class GatewayIdentityProvider(IdentityProvider):
         """
         # Always check the origin unless operator configured gateway to allow any
         return handler.settings["kg_allow_origin"] != "*"
+
+    def generate_anonymous_user(self, handler: web.RequestHandler) -> User:
+        """Generate a random anonymous user.
+
+        For use when a single shared token is used,
+        but does not identify a user.
+        """
+        name = display_name = f"Anonymous"
+        initials = "An"
+        color = None
+        return User(name.lower(), name, display_name, initials, None, color)
+
+    def is_token_authenticated(self, handler: web.RequestHandler) -> bool:
+        """The default authentication flow of Gateway is token auth.
+
+        The only other option is no auth
+        """
+        return True
