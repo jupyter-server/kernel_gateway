@@ -3,9 +3,9 @@
 """Session manager that keeps all its metadata in memory."""
 
 import uuid
-from notebook.utils import maybe_future
-from tornado import web, gen
+from tornado import web
 from traitlets.config.configurable import LoggingConfigurable
+from typing import List, Optional
 
 
 class SessionManager(LoggingConfigurable):
@@ -26,13 +26,13 @@ class SessionManager(LoggingConfigurable):
     _columns : list
         Session metadata key names
     """
-    def __init__(self, kernel_manager, *args, **kwargs):
-        super(SessionManager, self).__init__(*args, **kwargs)
+    def __init__(self, kernel_manager, **kwargs):
+        super(SessionManager, self).__init__(**kwargs)
         self.kernel_manager = kernel_manager
         self._sessions = []
         self._columns = ['session_id', 'path', 'kernel_id']
 
-    def session_exists(self, path, *args, **kwargs):
+    def session_exists(self, path, *args, **kwargs) -> bool:
         """Checks to see if the session with the given path value exists.
 
         Parameters
@@ -46,12 +46,11 @@ class SessionManager(LoggingConfigurable):
         """
         return bool([item for item in self._sessions if item['path'] == path])
 
-    def new_session_id(self):
+    def new_session_id(self) -> str:
         """Creates a uuid for a new session."""
         return str(uuid.uuid4())
 
-    @gen.coroutine
-    def create_session(self, path=None, kernel_name=None, kernel_id=None, *args, **kwargs):
+    async def create_session(self, path=None, kernel_name=None, kernel_id=None, *args, **kwargs) -> dict:
         """Creates a session and returns its model.
 
         Launches a kernel and stores the session metadata for later lookup.
@@ -72,10 +71,10 @@ class SessionManager(LoggingConfigurable):
         """
         session_id = self.new_session_id()
         # allow nbm to specify kernels cwd
-        kernel_id = yield maybe_future(self.kernel_manager.start_kernel(path=path, kernel_name=kernel_name))
-        raise gen.Return(self.save_session(session_id, path=path, kernel_id=kernel_id))
+        kernel_id = await self.kernel_manager.start_kernel(path=path, kernel_name=kernel_name)
+        return self.save_session(session_id, path=path, kernel_id=kernel_id)
 
-    def save_session(self, session_id, path=None, kernel_id=None, *args, **kwargs):
+    def save_session(self, session_id, path=None, kernel_id=None, *args, **kwargs) -> dict:
         """Saves the metadata for the session with the given `session_id`.
 
         Given a `session_id` (and any other of the arguments), this method
@@ -101,7 +100,7 @@ class SessionManager(LoggingConfigurable):
 
         return self.get_session(session_id=session_id)
 
-    def get_session_by_key(self, key, val, *args, **kwargs):
+    def get_session_by_key(self, key, val, *args, **kwargs) -> Optional[dict]:
         """Gets the first session with the given key/value pair.
 
         Parameters
@@ -187,6 +186,10 @@ class SessionManager(LoggingConfigurable):
         if not row:
             raise KeyError
 
+        # if kernel_id is in kwargs, validate it prior to removing the row...
+        if 'kernel_id' in kwargs and kwargs['kernel_id'] not in self.kernel_manager:
+            raise KeyError(f"Kernel '{kwargs['kernel_id']}' does not exist.")
+
         self._sessions.remove(row)
 
         if 'path' in kwargs:
@@ -223,7 +226,7 @@ class SessionManager(LoggingConfigurable):
         }
         return model
 
-    def list_sessions(self, *args, **kwargs):
+    def list_sessions(self, *args, **kwargs) -> List:
         """Returns a list of dictionaries containing all the information from
         the session store.
 
@@ -232,10 +235,10 @@ class SessionManager(LoggingConfigurable):
         list
             Dictionaries from `row_to_model`
         """
-        l = [self.row_to_model(r) for r in self._sessions]
-        return l
+        sessions = [self.row_to_model(r) for r in self._sessions]
+        return sessions
 
-    def delete_session(self, session_id, *args, **kwargs):
+    async def delete_session(self, session_id, *args, **kwargs):
         """Deletes the session in the session store with given `session_id`.
 
         Raises
@@ -248,5 +251,5 @@ class SessionManager(LoggingConfigurable):
         if not s:
             raise KeyError
 
-        self.kernel_manager.shutdown_kernel(s['kernel_id'])
+        await self.kernel_manager.shutdown_kernel(s['kernel_id'])
         self._sessions.remove(s)

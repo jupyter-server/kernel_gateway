@@ -2,11 +2,15 @@
 # Distributed under the terms of the Modified BSD License.
 """Kernel pools that track and delegate to kernels."""
 
-from jupyter_client.session import Session
-
+import asyncio
+import tornado.gen
 from tornado.locks import Semaphore
-from tornado import gen
+from tornado.concurrent import Future
 from traitlets.config.configurable import LoggingConfigurable
+from typing import Awaitable, List, Optional
+
+from jupyter_client.session import Session
+from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
 
 
 class KernelPool(LoggingConfigurable):
@@ -22,19 +26,37 @@ class KernelPool(LoggingConfigurable):
     kernel_manager
         Kernel manager instance
     """
-    def __init__(self, prespawn_count, kernel_manager):
+
+    kernel_manager: Optional[MappingKernelManager]
+    pool_initialized: Future
+
+    def __init__(self):
+        super().__init__()
+        self.kernel_manager = None
+        self.pool_initialized = Future()
+
+    async def initialize(self, prespawn_count, kernel_manager, **kwargs):
         self.kernel_manager = kernel_manager
         # Make sure we've got a int
         if not prespawn_count:
             prespawn_count = 0
-        for _ in range(prespawn_count):
-            self.kernel_manager.start_seeded_kernel()
 
-    def shutdown(self):
+        kernels_to_spawn: List[Awaitable] = []
+        for _ in range(prespawn_count):
+            kernels_to_spawn.append(self.kernel_manager.start_seeded_kernel())
+
+        await asyncio.gather(*kernels_to_spawn)
+
+        # Indicate that pool initialization has completed
+        self.pool_initialized.set_result(True)
+
+    async def shutdown(self):
         """Shuts down all running kernels."""
+        await self.pool_initialized
         kids = self.kernel_manager.list_kernel_ids()
         for kid in kids:
-            self.kernel_manager.shutdown_kernel(kid, now=True)
+            await self.kernel_manager.shutdown_kernel(kid, now=True)
+
 
 class ManagedKernelPool(KernelPool):
     """Spawns a pool of kernels that are treated as identical delegates for
@@ -61,19 +83,29 @@ class ManagedKernelPool(KernelPool):
     kernel_semaphore : tornado.locks.Semaphore
         Semaphore that controls access to the kernel pool
     """
-    def __init__(self, prespawn_count, kernel_manager):
+    kernel_clients: dict
+    on_recv_funcs: dict
+    kernel_pool: list
+    kernel_semaphore: Semaphore
+    managed_pool_initialized: Future
+
+    def __init__(self):
+        super().__init__()
+        self.kernel_clients = {}
+        self.on_recv_funcs = {}
+        self.kernel_pool = []
+        self.managed_pool_initialized = Future()
+
+    async def initialize(self, prespawn_count, kernel_manager, **kwargs):
         # Make sure there's at least one kernel as a delegate
         if not prespawn_count:
             prespawn_count = 1
 
-        super(ManagedKernelPool, self).__init__(prespawn_count, kernel_manager)
+        self.kernel_semaphore = Semaphore(prespawn_count)
 
-        self.kernel_clients = {}
-        self.on_recv_funcs = {}
-        self.kernel_pool = []
+        await super(ManagedKernelPool, self).initialize(prespawn_count, kernel_manager)
 
         kernel_ids = self.kernel_manager.list_kernel_ids()
-        self.kernel_semaphore = Semaphore(len(kernel_ids))
 
         # Create clients and iopub handlers for prespawned kernels
         for kernel_id in kernel_ids:
@@ -82,8 +114,10 @@ class ManagedKernelPool(KernelPool):
             iopub = self.kernel_manager.connect_iopub(kernel_id)
             iopub.on_recv(self.create_on_reply(kernel_id))
 
-    @gen.coroutine
-    def acquire(self):
+        # Indicate that pool initialization has completed
+        self.managed_pool_initialized.set_result(True)
+
+    async def acquire(self):
         """Gets a kernel client and removes it from the available pool of
         clients.
 
@@ -92,10 +126,11 @@ class ManagedKernelPool(KernelPool):
         tuple
             Kernel client instance, kernel ID
         """
-        yield self.kernel_semaphore.acquire()
+        await self.managed_pool_initialized
+        await self.kernel_semaphore.acquire()
         kernel_id = self.kernel_pool[0]
         del self.kernel_pool[0]
-        raise gen.Return((self.kernel_clients[kernel_id], kernel_id))
+        return self.kernel_clients[kernel_id], kernel_id
 
     def release(self, kernel_id):
         """Puts a kernel back into the pool of kernels available to handle
@@ -164,12 +199,13 @@ class ManagedKernelPool(KernelPool):
         """
         self.on_recv_funcs[kernel_id] = func
 
-    def shutdown(self):
+    async def shutdown(self):
         """Shuts down all kernels and their clients.
         """
+        await self.managed_pool_initialized
         for kid in self.kernel_clients:
             self.kernel_clients[kid].stop_channels()
-            self.kernel_manager.shutdown_kernel(kid, now=True)
+            await self.kernel_manager.shutdown_kernel(kid, now=True)
 
         # Any remaining kernels that were not created for our pool should be shutdown
-        super(ManagedKernelPool, self).shutdown()
+        await super(ManagedKernelPool, self).shutdown()

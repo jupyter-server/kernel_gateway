@@ -1,2 +1,6 @@
 coverage
-nose
+pytest
+pytest-cov
+pytest_jupyter
+pytest-timeout
+ipykernel

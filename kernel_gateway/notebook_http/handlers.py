@@ -5,15 +5,14 @@
 import os
 import json
 import tornado.web
-from notebook.utils import maybe_future
 from tornado.log import access_log
-from .request_utils import (parse_body, parse_args, format_request,
-    headers_to_dict, parameterize_path)
-from tornado import gen
+from typing import Optional
+from .request_utils import parse_body, parse_args, format_request, headers_to_dict, parameterize_path
 from tornado.concurrent import Future
 from ..mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
 from functools import partial
 from .errors import UnsupportedMethodError, CodeExecutionError
+
 
 class NotebookAPIHandler(TokenAuthorizationMixin,
                          CORSMixin,
@@ -152,14 +151,13 @@ class NotebookAPIHandler(TokenAuthorizationMixin,
             If the kernel returns any error
         """
         future = Future()
-        result_accumulator = {'stream' : [], 'error' : None, 'result' : None}
+        result_accumulator = {'stream': [], 'error': None, 'result': None}
         parent_header = kernel_client.execute(source_code)
         on_recv_func = partial(self.on_recv, result_accumulator, future, parent_header)
         self.kernel_pool.on_recv(kernel_id, on_recv_func)
         return future
 
-    @gen.coroutine
-    def _handle_request(self):
+    async def _handle_request(self):
         """Turns an HTTP request into annotated notebook code to execute on a
         kernel.
 
@@ -167,7 +165,7 @@ class NotebookAPIHandler(TokenAuthorizationMixin,
         result of the kernel execution. Then finishes the Tornado response.
         """
         self.response_future = Future()
-        kernel_client, kernel_id = yield self.kernel_pool.acquire()
+        kernel_client, kernel_id = await self.kernel_pool.acquire()
         try:
             # Method not supported
             if self.request.method not in self.sources:
@@ -181,18 +179,18 @@ class NotebookAPIHandler(TokenAuthorizationMixin,
             source_code = self.sources[self.request.method]
             # Build the request dictionary
             request = json.dumps({
-                'body' : parse_body(self.request),
-                'args' : parse_args(self.request.query_arguments),
-                'path' : self.path_kwargs,
-                'headers' : headers_to_dict(self.request.headers)
+                'body': parse_body(self.request),
+                'args': parse_args(self.request.query_arguments),
+                'path': self.path_kwargs,
+                'headers': headers_to_dict(self.request.headers)
             })
             # Turn the request string into a valid code string
             request_code = format_request(request, self.kernel_language)
 
             # Run the request and source code and yield until there's a result
             access_log.debug('Request code for notebook cell is: {}'.format(request_code))
-            yield self.execute_code(kernel_client, kernel_id, request_code)
-            source_result = yield self.execute_code(kernel_client, kernel_id, source_code)
+            await self.execute_code(kernel_client, kernel_id, request_code)
+            source_result = await self.execute_code(kernel_client, kernel_id, source_code)
 
             # If a response code cell exists, execute it
             if self.request.method in self.response_sources:
@@ -200,7 +198,7 @@ class NotebookAPIHandler(TokenAuthorizationMixin,
                 response_future = self.execute_code(kernel_client, kernel_id, response_code)
 
                 # Wait for the response and parse the json value
-                response_result = yield response_future
+                response_result = await response_future
                 response = json.loads(response_result)
 
                 # Copy all the header values into the tornado response
@@ -219,37 +217,34 @@ class NotebookAPIHandler(TokenAuthorizationMixin,
         except CodeExecutionError as err:
             self.write(str(err))
             self.set_status(500)
-        # An unspported method was called on this handler
+        # An unsupported method was called on this handler
         except UnsupportedMethodError:
             self.set_status(405)
         finally:
             # Always make sure we release the kernel and finish the request
             self.response_future.set_result(None)
             self.kernel_pool.release(kernel_id)
-            self.finish()
+            await self.finish()
 
-    @gen.coroutine
-    def get(self, **kwargs):
-        self._handle_request()
-        yield self.response_future
+    async def get(self, **kwargs):
+        await self._handle_request()
+        await self.response_future
 
-    @gen.coroutine
-    def post(self, **kwargs):
-        self._handle_request()
-        yield self.response_future
+    async def post(self, **kwargs):
+        await self._handle_request()
+        await self.response_future
 
-    @gen.coroutine
-    def put(self, **kwargs):
-        self._handle_request()
-        yield self.response_future
+    async def put(self, **kwargs):
+        await self._handle_request()
+        await self.response_future
 
-    @gen.coroutine
-    def delete(self, **kwargs):
-        self._handle_request()
-        yield self.response_future
+    async def delete(self, **kwargs):
+        await self._handle_request()
+        await self.response_future
 
     def options(self, **kwargs):
         self.finish()
+
 
 class NotebookDownloadHandler(TokenAuthorizationMixin,
                               CORSMixin,
@@ -257,11 +252,10 @@ class NotebookDownloadHandler(TokenAuthorizationMixin,
                               tornado.web.StaticFileHandler):
     """Handles requests to download the annotated notebook behind the web API.
     """
-    def initialize(self, path):
+    def initialize(self, path: str, default_filename: Optional[str] = None):
         self.dirname, self.filename = os.path.split(path)
         super(NotebookDownloadHandler, self).initialize(self.dirname)
 
-    @gen.coroutine
-    def get(self, include_body=True):
-        res = super(NotebookDownloadHandler, self).get(self.filename, include_body)
-        yield maybe_future(res)
+    async def get(self, include_body: bool = True):
+        res = await super().get(path=self.filename, include_body=include_body)
+        return res

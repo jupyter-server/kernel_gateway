@@ -7,6 +7,7 @@ import sys
 from traitlets import Unicode
 from traitlets.config.configurable import LoggingConfigurable
 
+
 def first_path_param_index(endpoint):
     """Gets the index to the first path parameter for the endpoint. The
     returned value is not the string index, but rather the depth of where the
@@ -36,6 +37,7 @@ def first_path_param_index(endpoint):
     if endpoint.find(':') >= 0:
         index = endpoint.count('/', 0, endpoint.find(':')) - 1
     return index
+
 
 class APICellParser(LoggingConfigurable):
     """A utility class for parsing Jupyter code cells to find API annotations
@@ -67,8 +69,8 @@ class APICellParser(LoggingConfigurable):
     api_indicator = Unicode(default_value=r'{}\s+(GET|PUT|POST|DELETE)\s+(\/.*)+')
     api_response_indicator = Unicode(default_value=r'{}\s+ResponseInfo\s+(GET|PUT|POST|DELETE)\s+(\/.*)+')
 
-    def __init__(self, comment_prefix, *args, **kwargs):
-        super(APICellParser, self).__init__(*args, **kwargs)
+    def __init__(self, comment_prefix, notebook_cells=None, **kwargs):
+        super().__init__(**kwargs)
         self.kernelspec_api_indicator = re.compile(self.api_indicator.format(comment_prefix))
         self.kernelspec_api_response_indicator = re.compile(self.api_response_indicator.format(comment_prefix))
 
@@ -213,6 +215,7 @@ class APICellParser(LoggingConfigurable):
             Dictionary with a root "swagger" property
         """
         return {'swagger': '2.0', 'paths': {}, 'info': {'version': '0.0.0'}}
+
 
 def create_parser(*args, **kwargs):
     return APICellParser(*args, **kwargs)

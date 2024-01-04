@@ -71,10 +71,10 @@ sdist: ## Make a dist/*.tar.gz source distribution
 test: TEST?=
 test: ## Make a python3 test run
 ifeq ($(TEST),)
-	$(SA) $(ENV) && nosetests
+	$(SA) $(ENV) && pytest -vv
 else
-# e.g., make test TEST="test_gatewayapp.TestGatewayAppConfig"
-	$(SA) $(ENV) && nosetests kernel_gateway.tests.$(TEST)
+# e.g., make test TEST="test_gatewayapp.py::TestGatewayAppConfig"
+	$(SA) $(ENV) && pytest -vv kernel_gateway/tests/$(TEST)
 endif
 
 release: POST_SDIST=register upload

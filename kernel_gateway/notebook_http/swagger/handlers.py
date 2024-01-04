@@ -9,6 +9,7 @@ import json
 from .builders import SwaggerSpecBuilder
 from ...mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
 
+
 class SwaggerSpecHandler(TokenAuthorizationMixin,
                          CORSMixin,
                          JSONErrorsMixin,
@@ -38,8 +39,8 @@ class SwaggerSpecHandler(TokenAuthorizationMixin,
             spec_builder.set_default_title(notebook_path)
             SwaggerSpecHandler.output = json.dumps(spec_builder.build())
 
-    def get(self, **kwargs):
+    async def get(self, **kwargs):
         """Responds with the spec in JSON format."""
         self.set_header('Content-Type', 'application/json')
         self.set_status(200)
-        self.finish(self.output)
+        await self.finish(self.output)

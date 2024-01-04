@@ -7,10 +7,12 @@ import json
 from kernel_gateway.notebook_http.request_utils import (format_request,
     parse_body, parameterize_path, headers_to_dict, parse_args)
 
+
 class MockRequest(dict):
     def __init__(self, *args, **kwargs):
         super(MockRequest, self).__init__(*args, **kwargs)
         self.__dict__ = self
+
 
 class MockHeaders(object):
     def __init__(self, headers, **kwargs):
@@ -18,6 +20,7 @@ class MockHeaders(object):
 
     def get_all(self):
         return self.headers
+
 
 class TestRequestUtils(unittest.TestCase):
     """Unit tests the request utility helper functions."""

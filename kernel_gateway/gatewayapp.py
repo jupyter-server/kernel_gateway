@@ -2,46 +2,51 @@
 # Distributed under the terms of the Modified BSD License.
 """Kernel Gateway Jupyter application."""
 
+import asyncio
 import errno
 import importlib
 import logging
+import hashlib
+import hmac
 import os
 import sys
 import signal
+import select
 import socket
 import ssl
+import threading
+from base64 import encodebytes
 from distutils.util import strtobool
 
 import nbformat
-from notebook.services.kernels.kernelmanager import MappingKernelManager
+from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
 
-try:
-    from urlparse import urlparse
-except ImportError:
-    from urllib.parse import urlparse
-
-from traitlets import Unicode, Integer, default, observe, Type, Instance, List, CBool
+from urllib.parse import urlparse
+from traitlets import Unicode, Integer, Bytes, default, observe, Type, Instance, List, CBool
 
 from jupyter_core.application import JupyterApp, base_aliases
 from jupyter_client.kernelspec import KernelSpecManager
 
-# Install the pyzmq ioloop. This has to be done before anything else from
-# tornado is imported.
-from zmq.eventloop import ioloop
-ioloop.install()
-
 from tornado import httpserver
-from tornado import web
+from tornado import web, ioloop
 from tornado.log import enable_pretty_logging, LogFormatter
 
-from notebook.notebookapp import random_ports
+from jupyter_core.paths import secure_write
+from jupyter_server.serverapp import random_ports
 from ._version import __version__
 from .services.sessions.sessionmanager import SessionManager
 from .services.kernels.manager import SeedingMappingKernelManager
 
+from .auth.identity import GatewayIdentityProvider
+
 # Only present for generating help documentation
 from .notebook_http import NotebookHTTPPersonality
 from .jupyter_websocket import JupyterWebsocketPersonality
+
+from jupyter_server.auth.authorizer import AllowAllAuthorizer, Authorizer
+from jupyter_server.services.kernels.connection.base import BaseKernelWebsocketConnection
+from jupyter_server.services.kernels.connection.channels import ZMQChannelsWebsocketConnection
+
 
 # Add additional command line aliases
 aliases = dict(base_aliases)
@@ -310,6 +315,65 @@ class KernelGatewayApp(JupyterApp):
         ssl_from_env = os.getenv(self.ssl_version_env)
         return ssl_from_env if ssl_from_env is None else int(ssl_from_env)
 
+    cookie_secret_file = Unicode(
+        config=True, help="""The file where the cookie secret is stored."""
+    )
+
+    @default("cookie_secret_file")
+    def _default_cookie_secret_file(self):
+        return os.path.join(self.runtime_dir, "jupyter_cookie_secret")
+
+    cookie_secret = Bytes(
+        b"",
+        config=True,
+        help="""The random bytes used to secure cookies.
+        By default this is a new random number every time you start the server.
+        Set it to a value in a config file to enable logins to persist across server sessions.
+
+        Note: Cookie secrets should be kept private, do not share config files with
+        cookie_secret stored in plaintext (you can read the value from a file).
+        """,
+    )
+
+    @default("cookie_secret")
+    def _default_cookie_secret(self):
+        if os.path.exists(self.cookie_secret_file):
+            with open(self.cookie_secret_file, "rb") as f:
+                key = f.read()
+        else:
+            key = encodebytes(os.urandom(32))
+            self._write_cookie_secret_file(key)
+        h = hmac.new(key, digestmod=hashlib.sha256)
+        # h.update(self.password.encode())  # password is deprecated in 2.0
+        return h.digest()
+
+    def _write_cookie_secret_file(self, secret):
+        """write my secret to my secret_file"""
+        self.log.info("Writing Jupyter server cookie secret to %s", self.cookie_secret_file)
+        try:
+            with secure_write(self.cookie_secret_file, True) as f:
+                f.write(secret)
+        except OSError as e:
+            self.log.error(
+                "Failed to write cookie secret to %s: %s",
+                self.cookie_secret_file,
+                e,
+            )
+
+    ws_ping_interval_env = "KG_WS_PING_INTERVAL_SECS"
+    ws_ping_interval_default_value = 30
+    ws_ping_interval = Integer(
+        ws_ping_interval_default_value,
+        config=True,
+        help="""Specifies the ping interval(in seconds) that should be used by zmq port
+                                     associated with spawned kernels. Set this variable to 0 to disable ping mechanism.
+                                    (KG_WS_PING_INTERVAL_SECS env var)""",
+    )
+
+    @default("ws_ping_interval")
+    def _ws_ping_interval_default(self) -> int:
+        return int(os.getenv(self.ws_ping_interval_env, self.ws_ping_interval_default_value))
+
     _log_formatter_cls = LogFormatter  # traitlet default is LevelFormatter
 
     @default("log_format")
@@ -335,6 +399,27 @@ class KernelGatewayApp(JupyterApp):
         default_value=SeedingMappingKernelManager,
         config=True,
         help="""The kernel manager class to use."""
+    )
+
+    kernel_websocket_connection_class = Type(
+        default_value=ZMQChannelsWebsocketConnection,
+        klass=BaseKernelWebsocketConnection,
+        config=True,
+        help="""The kernel websocket connection class to use.""",
+    )
+
+    authorizer_class = Type(
+        default_value=AllowAllAuthorizer,
+        klass=Authorizer,
+        config=True,
+        help="The authorizer class to use.",
+    )
+
+    identity_provider_class = Type(
+        default_value=GatewayIdentityProvider,
+        klass=GatewayIdentityProvider,
+        config=True,
+        help="The identity provider class to use.",
     )
 
     def _load_api_module(self, module_name):
@@ -391,7 +476,7 @@ class KernelGatewayApp(JupyterApp):
 
         return notebook
 
-    def initialize(self, argv=None):
+    def initialize(self, argv=None, new_httpserver=True,):
         """Initializes the base class, configurable manager instances, the
         Tornado web app, and the tornado HTTP server.
 
@@ -399,11 +484,18 @@ class KernelGatewayApp(JupyterApp):
         ----------
         argv
             Command line arguments
+
+        new_httpserver
+            Indicates that a new HTTP server instance should be created
         """
-        super(KernelGatewayApp, self).initialize(argv)
+        super().initialize(argv)
+
+        self.init_io_loop()
         self.init_configurables()
         self.init_webapp()
-        self.init_http_server()
+        self.init_signal()
+        if new_httpserver:
+            self.init_http_server()
 
     def init_configurables(self):
         """Initializes all configurable objects including a kernel manager, kernel
@@ -445,17 +537,22 @@ class KernelGatewayApp(JupyterApp):
         )
         self.contents_manager = None
 
+        self.identity_provider = self.identity_provider_class(parent=self, log=self.log)
+
+        self.authorizer = self.authorizer_class(
+            parent=self, log=self.log, identity_provider=self.identity_provider
+        )
+
         if self.prespawn_count:
             if self.max_kernels and self.prespawn_count > self.max_kernels:
-                raise RuntimeError('cannot prespawn {}; more than max kernels {}'.format(
-                    self.prespawn_count, self.max_kernels)
-                )
+                msg = f"Cannot prespawn {self.prespawn_count} kernels; more than max kernels {self.max_kernels}"
+                raise RuntimeError(msg)
 
         api_module = self._load_api_module(self.api)
         func = getattr(api_module, 'create_personality')
         self.personality = func(parent=self, log=self.log)
 
-        self.personality.init_configurables()
+        self.io_loop.call_later(0.1, lambda: asyncio.create_task(self.personality.init_configurables()))
 
     def init_webapp(self):
         """Initializes Tornado web application with uri handlers.
@@ -493,8 +590,17 @@ class KernelGatewayApp(JupyterApp):
             allow_origin=self.allow_origin,
             # Set base_url for use in request handlers
             base_url=self.base_url,
+            # Authentication
+            cookie_secret=self.cookie_secret,
             # Always allow remote access (has been limited to localhost >= notebook 5.6)
-            allow_remote_access=True
+            allow_remote_access=True,
+            # setting ws_ping_interval value that can allow it to be modified for the purpose of toggling ping mechanism
+            # for zmq web-sockets or increasing/decreasing web socket ping interval/timeouts.
+            ws_ping_interval=self.ws_ping_interval * 1000,
+            # Add a pass-through authorizer for now
+            authorizer=self.authorizer_class(parent=self),
+            identity_provider=self.identity_provider,
+            kernel_websocket_connection_class=self.kernel_websocket_connection_class,
         )
 
         # promote the current personality's "config" tagged traitlet values to webapp settings
@@ -562,9 +668,78 @@ class KernelGatewayApp(JupyterApp):
                               'no available port could be found.')
             self.exit(1)
 
+    def init_io_loop(self):
+        """init self.io_loop so that an extension can use it by io_loop.call_later() to create background tasks"""
+        self.io_loop = ioloop.IOLoop.current()
+
+    def init_signal(self):
+        """Initialize signal handlers."""
+        if not sys.platform.startswith("win") and sys.stdin and sys.stdin.isatty():
+            signal.signal(signal.SIGINT, self._handle_sigint)
+        signal.signal(signal.SIGTERM, self._signal_stop)
+        signal.signal(signal.SIGQUIT, self._signal_stop)
+
+    def _handle_sigint(self, sig, frame):
+        """SIGINT handler spawns confirmation dialog"""
+        # register more forceful signal handler for ^C^C case
+        signal.signal(signal.SIGINT, self._signal_stop)
+        # request confirmation dialog in bg thread, to avoid
+        # blocking the App
+        thread = threading.Thread(target=self._confirm_exit)
+        thread.daemon = True
+        thread.start()
+
+    def _restore_sigint_handler(self):
+        """callback for restoring original SIGINT handler"""
+        signal.signal(signal.SIGINT, self._handle_sigint)
+
+    def _confirm_exit(self):
+        """confirm shutdown on ^C
+
+        A second ^C, or answering 'y' within 5s will cause shutdown,
+        otherwise original SIGINT handler will be restored.
+
+        This doesn't work on Windows.
+        """
+        info = self.log.info
+        info("interrupted")
+        # Check if answer_yes is set
+        if self.answer_yes:
+            self.log.critical("Shutting down...")
+            # schedule stop on the main thread,
+            # since this might be called from a signal handler
+            self.stop(from_signal=True)
+            return
+        yes = "y"
+        no = "n"
+        sys.stdout.write("Shutdown this Jupyter server (%s/[%s])? " % (yes, no))
+        sys.stdout.flush()
+        r, w, x = select.select([sys.stdin], [], [], 5)
+        if r:
+            line = sys.stdin.readline()
+            if line.lower().startswith(yes) and no not in line.lower():
+                self.log.critical("Shutdown confirmed")
+                # schedule stop on the main thread,
+                # since this might be called from a signal handler
+                self.stop(from_signal=True)
+                return
+        else:
+            info("No answer for 5s:")
+        info("resuming operation...")
+        # no answer, or answer is no:
+        # set it back to original SIGINT handler
+        # use IOLoop.add_callback because signal.signal must be called
+        # from main thread
+        self.io_loop.add_callback_from_signal(self._restore_sigint_handler)
+
+    def _signal_stop(self, sig, frame):
+        """Handle a stop signal."""
+        self.log.critical("received signal %s, stopping", sig)
+        self.stop(from_signal=True)
+
     def start_app(self):
         """Starts the application (with ioloop to follow). """
-        super(KernelGatewayApp, self).start()
+        super().start()
         self.log.info('Jupyter Kernel Gateway {} is available at http{}://{}:{}'.format(
             KernelGatewayApp.version, 's' if self.keyfile else '', self.ip, self.port
         ))
@@ -573,8 +748,6 @@ class KernelGatewayApp(JupyterApp):
         """Starts an IO loop for the application."""
 
         self.start_app()
-
-        self.io_loop = ioloop.IOLoop.current()
 
         if sys.platform != 'win32':
             signal.signal(signal.SIGHUP, signal.SIG_IGN)
@@ -586,23 +759,36 @@ class KernelGatewayApp(JupyterApp):
         except KeyboardInterrupt:
             self.log.info("Interrupted...")
         finally:
-            self.shutdown()
+            self.stop()
 
-    def stop(self):
-        """
-        Stops the HTTP server and IO loop associated with the application.
-        """
-        def _stop():
-            self.http_server.stop()
+    async def _stop(self):
+        """Cleanup resources and stop the IO Loop."""
+        await self.personality.shutdown()
+        await self.kernel_websocket_connection_class.close_all()
+        if getattr(self, "io_loop", None):
             self.io_loop.stop()
-        self.io_loop.add_callback(_stop)
+
+    def stop(self, from_signal=False):
+        """Cleanup resources and stop the server."""
+        if hasattr(self, "http_server"):
+            # Stop a server if its set.
+            self.http_server.stop()
+        if getattr(self, "io_loop", None):
+            # use IOLoop.add_callback because signal.signal must be called
+            # from main thread
+            if from_signal:
+                self.io_loop.add_callback_from_signal(self._stop)
+            else:
+                self.io_loop.add_callback(self._stop)
 
     def shutdown(self):
         """Stop all kernels in the pool."""
-        self.personality.shutdown()
+        self.io_loop.add_callback(self._stop)
 
-    def _signal_stop(self, sig, frame):
-        self.log.info("Received signal to terminate.")
-        self.io_loop.stop()
+    async def async_shutdown(self):
+        """Stop all kernels in the pool."""
+        if hasattr(self, "personality"):
+            await self.personality.shutdown()
+
 
 launch_instance = KernelGatewayApp.launch_instance

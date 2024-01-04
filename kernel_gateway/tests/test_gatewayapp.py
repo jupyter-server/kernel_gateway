@@ -1,159 +1,126 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
 """Tests for basic gateway app behavior."""
+import ssl
 
-
-import logging
 import nbformat
 import os
-from io import StringIO
-import unittest
-from unittest.mock import patch
-from kernel_gateway.gatewayapp import KernelGatewayApp, ioloop
+
+from kernel_gateway.gatewayapp import KernelGatewayApp
 from kernel_gateway import __version__
-from ..notebook_http.swagger.handlers import SwaggerSpecHandler
-from tornado.testing import AsyncHTTPTestCase, ExpectLog
 
 RESOURCES = os.path.join(os.path.dirname(__file__), 'resources')
 
 
-class TestGatewayAppConfig(unittest.TestCase):
+class TestGatewayAppConfig:
     """Tests configuration of the gateway app."""
 
-    def setUp(self):
-        """Saves a copy of the environment."""
-        self.environ = dict(os.environ)
-
-    def tearDown(self):
-        """Resets the environment."""
-        os.environ = self.environ
-
-    def test_config_env_vars(self):
+    def test_config_env_vars(self, monkeypatch):
         """Env vars should be honored for traitlets."""
         # Environment vars are always strings
-        os.environ['KG_PORT'] = '1234'
-        os.environ['KG_PORT_RETRIES'] = '4321'
-        os.environ['KG_IP'] = '1.1.1.1'
-        os.environ['KG_AUTH_TOKEN'] = 'fake-token'
-        os.environ['KG_ALLOW_CREDENTIALS'] = 'true'
-        os.environ['KG_ALLOW_HEADERS'] = 'Authorization'
-        os.environ['KG_ALLOW_METHODS'] = 'GET'
-        os.environ['KG_ALLOW_ORIGIN'] = '*'
-        os.environ['KG_EXPOSE_HEADERS'] = 'X-Fake-Header'
-        os.environ['KG_MAX_AGE'] = '5'
-        os.environ['KG_BASE_URL'] = '/fake/path'
-        os.environ['KG_MAX_KERNELS'] = '1'
-        os.environ['KG_SEED_URI'] = 'fake-notebook.ipynb'
-        os.environ['KG_PRESPAWN_COUNT'] = '1'
-        os.environ['KG_FORCE_KERNEL_NAME'] = 'fake_kernel_forced'
-        os.environ['KG_DEFAULT_KERNEL_NAME'] = 'fake_kernel'
-        os.environ['KG_KEYFILE'] = '/test/fake.key'
-        os.environ['KG_CERTFILE'] = '/test/fake.crt'
-        os.environ['KG_CLIENT_CA'] = '/test/fake_ca.crt'
-        os.environ['KG_SSL_VERSION'] = '3'
-        os.environ['KG_TRUST_XHEADERS'] = 'false'
+        monkeypatch.setenv("KG_PORT", "1234")
+        monkeypatch.setenv("KG_PORT_RETRIES", "4321")
+        monkeypatch.setenv("KG_IP", "1.1.1.1")
+        monkeypatch.setenv("KG_AUTH_TOKEN", "fake-token")
+        monkeypatch.setenv("KG_ALLOW_CREDENTIALS", "true")
+        monkeypatch.setenv("KG_ALLOW_HEADERS", "Authorization")
+        monkeypatch.setenv("KG_ALLOW_METHODS", "GET")
+        monkeypatch.setenv("KG_ALLOW_ORIGIN", "*")
+        monkeypatch.setenv("KG_EXPOSE_HEADERS", "X-Fake-Header")
+        monkeypatch.setenv("KG_MAX_AGE", "5")
+        monkeypatch.setenv("KG_BASE_URL", "/fake/path")
+        monkeypatch.setenv("KG_MAX_KERNELS", "1")
+        monkeypatch.setenv("KG_SEED_URI", "fake-notebook.ipynb")
+        monkeypatch.setenv("KG_PRESPAWN_COUNT", "1")
+        monkeypatch.setenv("KG_FORCE_KERNEL_NAME", "fake_kernel_forced")
+        monkeypatch.setenv("KG_DEFAULT_KERNEL_NAME", "fake_kernel")
+        monkeypatch.setenv("KG_KEYFILE", "/test/fake.key")
+        monkeypatch.setenv("KG_CERTFILE", "/test/fake.crt")
+        monkeypatch.setenv("KG_CLIENT_CA", "/test/fake_ca.crt")
+        monkeypatch.setenv("KG_SSL_VERSION", "3")
+        monkeypatch.setenv("KG_TRUST_XHEADERS", "false")
 
         app = KernelGatewayApp()
 
-        self.assertEqual(app.port, 1234)
-        self.assertEqual(app.port_retries, 4321)
-        self.assertEqual(app.ip, '1.1.1.1')
-        self.assertEqual(app.auth_token, 'fake-token')
-        self.assertEqual(app.allow_credentials, 'true')
-        self.assertEqual(app.allow_headers, 'Authorization')
-        self.assertEqual(app.allow_methods, 'GET')
-        self.assertEqual(app.allow_origin, '*')
-        self.assertEqual(app.expose_headers, 'X-Fake-Header')
-        self.assertEqual(app.max_age, '5')
-        self.assertEqual(app.base_url, '/fake/path')
-        self.assertEqual(app.max_kernels, 1)
-        self.assertEqual(app.seed_uri, 'fake-notebook.ipynb')
-        self.assertEqual(app.prespawn_count, 1)
-        self.assertEqual(app.default_kernel_name, 'fake_kernel')
-        self.assertEqual(app.force_kernel_name, 'fake_kernel_forced')
-        self.assertEqual(app.keyfile, '/test/fake.key')
-        self.assertEqual(app.certfile, '/test/fake.crt')
-        self.assertEqual(app.client_ca, '/test/fake_ca.crt')
-        self.assertEqual(app.ssl_version, 3)
-        self.assertEqual(app.trust_xheaders, False)
+        assert app.port == 1234
+        assert app.port_retries == 4321
+        assert app.ip == "1.1.1.1"
+        assert app.auth_token == "fake-token"
+        assert app.allow_credentials == "true"
+        assert app.allow_headers == "Authorization"
+        assert app.allow_methods == "GET"
+        assert app.allow_origin == "*"
+        assert app.expose_headers == "X-Fake-Header"
+        assert app.max_age == "5"
+        assert app.base_url == "/fake/path"
+        assert app.max_kernels == 1
+        assert app.seed_uri == "fake-notebook.ipynb"
+        assert app.prespawn_count == 1
+        assert app.default_kernel_name == "fake_kernel"
+        assert app.force_kernel_name == "fake_kernel_forced"
+        assert app.keyfile == "/test/fake.key"
+        assert app.certfile == "/test/fake.crt"
+        assert app.client_ca == "/test/fake_ca.crt"
+        assert app.ssl_version == 3
+        assert app.trust_xheaders is False
+        KernelGatewayApp.clear_instance()
 
-    def test_trust_xheaders(self):
-
+    def test_trust_xheaders(self, monkeypatch):
         app = KernelGatewayApp()
-        self.assertEqual(app.trust_xheaders, False)
-        os.environ['KG_TRUST_XHEADERS'] = 'true'
+        assert app.trust_xheaders is False
+        monkeypatch.setenv("KG_TRUST_XHEADERS", "true")
         app = KernelGatewayApp()
-        self.assertEqual(app.trust_xheaders, True)
+        assert app.trust_xheaders is True
+        KernelGatewayApp.clear_instance()
 
-    def test_ssl_options(self):
+    def test_ssl_options(self, monkeypatch):
         app = KernelGatewayApp()
         ssl_options = app._build_ssl_options()
-        self.assertIsNone(ssl_options)
-        app = KernelGatewayApp()
-        os.environ['KG_CERTFILE'] = '/test/fake.crt'
-        ssl_options = app._build_ssl_options()
-        self.assertEqual(ssl_options['ssl_version'], 5)
+        assert ssl_options is None
+        KernelGatewayApp.clear_instance()
 
-    def test_load_notebook_local(self):
-        nb_path = os.path.join(RESOURCES, 'weirdly%20named#notebook.ipynb')
-        os.environ['KG_SEED_URI'] = nb_path
+        # Set all options
+        monkeypatch.setenv("KG_CERTFILE", "/test/fake.crt")
+        monkeypatch.setenv("KG_KEYFILE", "/test/fake.key")
+        monkeypatch.setenv("KG_CLIENT_CA", "/test/fake.ca")
+        monkeypatch.setenv("KG_SSL_VERSION", "42")
+        app = KernelGatewayApp()
+        ssl_options = app._build_ssl_options()
+        assert ssl_options["certfile"] == "/test/fake.crt"
+        assert ssl_options["keyfile"] == "/test/fake.key"
+        assert ssl_options["ca_certs"] == "/test/fake.ca"
+        assert ssl_options["cert_reqs"] == ssl.CERT_REQUIRED
+        assert ssl_options["ssl_version"] == 42
+        KernelGatewayApp.clear_instance()
+
+        # Set few options
+        monkeypatch.delenv("KG_KEYFILE")
+        monkeypatch.delenv("KG_CLIENT_CA")
+        monkeypatch.delenv("KG_SSL_VERSION")
+        app = KernelGatewayApp()
+        ssl_options = app._build_ssl_options()
+        assert ssl_options["certfile"] == "/test/fake.crt"
+        assert ssl_options["ssl_version"] == ssl.PROTOCOL_TLSv1_2
+        assert "cert_reqs" not in ssl_options
+        KernelGatewayApp.clear_instance()
+
+    def test_load_notebook_local(self, monkeypatch):
+        nb_path = os.path.join(RESOURCES, "weirdly%20named#notebook.ipynb")
+        monkeypatch.setenv("KG_SEED_URI", nb_path)
         with open(nb_path) as nb_fh:
             nb_contents = nbformat.read(nb_fh, 4)
 
         app = KernelGatewayApp()
+        app.init_io_loop()
         app.init_configurables()
-        self.assertEqual(app.seed_notebook, nb_contents)
+        assert app.seed_notebook == nb_contents
+        KernelGatewayApp.clear_instance()
 
-    @patch('sys.stderr', new_callable=StringIO)
-    def test_start_banner(self, stderr):
-
+    def test_start_banner(self, capsys):
         app = KernelGatewayApp()
+        app.init_io_loop()
         app.init_configurables()
         app.start_app()
-        banner = stderr.getvalue()
-        self.assertIn(f"Jupyter Kernel Gateway {__version__}", banner)
-
-
-class TestGatewayAppBase(AsyncHTTPTestCase, ExpectLog):
-    """Base class for integration style tests using HTTP/Websockets against an
-    instance of the gateway app.
-
-    Attributes
-    ----------
-    app : KernelGatewayApp
-        Instance of the app
-    """
-
-    def tearDown(self):
-        """Shuts down the app after test run."""
-        if self.app:
-            self.app.shutdown()
-        # Make sure the generated Swagger output is reset for subsequent tests
-        SwaggerSpecHandler.output = None
-        super(TestGatewayAppBase, self).tearDown()
-
-    def get_new_ioloop(self):
-        """Uses a global zmq ioloop for tests."""
-        return ioloop.IOLoop.current()
-
-    def get_app(self):
-        """Returns a tornado.web.Application for the Tornado test runner."""
-        if hasattr(self, '_app'):
-            return self._app
-        self.app = KernelGatewayApp(log_level=logging.CRITICAL)
-        self.setup_app()
-        self.app.init_configurables()
-        self.setup_configurables()
-        self.app.init_webapp()
-        return self.app.web_app
-
-    def setup_app(self):
-        """Override to configure KernelGatewayApp instance before initializing
-        configurables and the web app.
-        """
-        pass
-
-    def setup_configurables(self):
-        """Override to configure further settings, such as the personality.
-        """
-        pass
+        log = capsys.readouterr()
+        assert f"Jupyter Kernel Gateway {__version__}" in log.err
+        KernelGatewayApp.clear_instance()

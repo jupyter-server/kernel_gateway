@@ -10,7 +10,7 @@ from ..services.kernels.pool import ManagedKernelPool
 from .cell.parser import APICellParser
 from .swagger.handlers import SwaggerSpecHandler
 from .handlers import NotebookAPIHandler, parameterize_path, NotebookDownloadHandler
-from notebook.utils import url_path_join
+from jupyter_server.utils import url_path_join
 from traitlets import Bool, Unicode, Dict, default
 from traitlets.config.configurable import LoggingConfigurable
 
@@ -56,8 +56,10 @@ class NotebookHTTPPersonality(LoggingConfigurable):
     def static_path_default(self):
         return os.getenv(self.static_path_env)
 
+    kernel_pool: ManagedKernelPool
+
     def __init__(self, *args, **kwargs):
-        super(NotebookHTTPPersonality, self).__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         # Import the module to use for cell endpoint parsing
         cell_parser_module = importlib.import_module(self.cell_parser)
         # Build the parser using the comment syntax for the notebook language
@@ -71,10 +73,10 @@ class NotebookHTTPPersonality(LoggingConfigurable):
                                comment_prefix=prefix,
                                notebook_cells=self.parent.seed_notebook.cells)
         self.kernel_language = kernel_language
+        self.kernel_pool = ManagedKernelPool()
 
-    def init_configurables(self):
-        """Create a managed kernel pool"""
-        self.kernel_pool = ManagedKernelPool(
+    async def init_configurables(self):
+        await self.kernel_pool.initialize(
             self.parent.prespawn_count,
             self.parent.kernel_manager
         )
@@ -147,11 +149,12 @@ class NotebookHTTPPersonality(LoggingConfigurable):
         """Determines whether the given code cell source should be executed when
         seeding a new kernel."""
         # seed cells that are uninvolved with the presented API
-        return (not self.api_parser.is_api_cell(code) and not self.api_parser.is_api_response_cell(code))
+        return not self.api_parser.is_api_cell(code) and not self.api_parser.is_api_response_cell(code)
 
-    def shutdown(self):
+    async def shutdown(self):
         """Stop all kernels in the pool."""
-        self.kernel_pool.shutdown()
+        await self.kernel_pool.shutdown()
+
 
 def create_personality(*args, **kwargs):
     return NotebookHTTPPersonality(*args, **kwargs)

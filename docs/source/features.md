@@ -24,4 +24,4 @@ The Jupyter Kernel Gateway has the following features:
 * Generation of [Swagger specs](http://swagger.io/introducing-the-open-api-initiative/)
   for notebook-defined API in `notebook-http` mode
 * A CLI for launching the kernel gateway: `jupyter kernelgateway OPTIONS`
-* A Python 2.7 and 3.3+ compatible implementation
+* A Python 3.8+ compatible implementation

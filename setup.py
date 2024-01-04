@@ -53,14 +53,14 @@ containerized and scaled out using common technologies like
         'scripts/jupyter-kernelgateway'
     ],
     install_requires=[
-        'jupyter_core>=4.4.0',
-        'jupyter_client>=5.2.0,<8.0',  # Pin < 8 until we update packages in #377
-        'notebook>=5.7.6,<7.0',
-        'traitlets>=4.2.0',
-        'tornado>=4.2.0',
+        'jupyter_client>=7.4.4',
+        'jupyter_core>=4.12,!=5.0.*',
+        'jupyter_server>=2.0',
+        'traitlets>=5.6.0',
+        'tornado>=6.2.0',
         'requests>=2.7,<3.0'
     ],
-    python_requires='>=3.7',
+    python_requires='>=3.8',
     classifiers=[
         'Intended Audience :: Developers',
         'Intended Audience :: System Administrators',
@@ -69,9 +69,10 @@ containerized and scaled out using common technologies like
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
     ],
     include_package_data=True,
 )

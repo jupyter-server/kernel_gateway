@@ -9,7 +9,7 @@ from ..services.kernels.handlers import default_handlers as default_kernel_handl
 from ..services.kernelspecs.handlers import default_handlers as default_kernelspec_handlers
 from ..services.sessions.handlers import default_handlers as default_session_handlers
 from .handlers import default_handlers as default_api_handlers
-from notebook.utils import url_path_join
+from jupyter_server.utils import url_path_join
 from traitlets import Bool, List, default
 from traitlets.config.configurable import LoggingConfigurable
 
@@ -39,8 +39,14 @@ class JupyterWebsocketPersonality(LoggingConfigurable):
     def env_whitelist_default(self):
         return os.getenv(self.env_whitelist_env, '').split(',')
 
-    def init_configurables(self):
-        self.kernel_pool = KernelPool(
+    kernel_pool: KernelPool
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+        self.kernel_pool = KernelPool()
+
+    async def init_configurables(self):
+        await self.kernel_pool.initialize(
             self.parent.prespawn_count,
             self.parent.kernel_manager
         )
@@ -70,12 +76,12 @@ class JupyterWebsocketPersonality(LoggingConfigurable):
     def should_seed_cell(self, code):
         """Determines whether the given code cell source should be executed when
         seeding a new kernel."""
-        # seed all code cells
+        # seed all code cells in websocket personality
         return True
 
-    def shutdown(self):
+    async def shutdown(self):
         """Stop all kernels in the pool."""
-        self.kernel_pool.shutdown()
+        await self.kernel_pool.shutdown()
 
 
 def create_personality(*args, **kwargs):
