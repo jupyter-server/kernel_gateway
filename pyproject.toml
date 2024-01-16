@@ -7,7 +7,7 @@ name = "jupyter-kernel-gateway"
 dynamic = ["version"]
 description = "A web server for spawning and communicating with Jupyter kernels"
 readme = "README.md"
-license = "BSD"
+license = { file = "LICENSE.md" }
 requires-python = ">=3.8"
 authors = [
     { name = "Jupyter Development Team", email = "jupyter@googlegroups.com" },
