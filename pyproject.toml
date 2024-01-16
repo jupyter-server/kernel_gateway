@@ -70,6 +70,9 @@ include = [
     "/kernel_gateway",
 ]
 
+[tool.hatch.build.targets.wheel]
+packages = ["kernel_gateway"]
+
 [tool.hatch.envs.docs]
 features = ["docs"]
 [tool.hatch.envs.docs.scripts]
