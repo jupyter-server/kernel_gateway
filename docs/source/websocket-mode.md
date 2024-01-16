@@ -3,7 +3,7 @@
 The `KernelGatewayApp.api` command line argument defaults to `kernel_gateway.jupyter_websocket`. This mode, or *personality*, has the kernel gateway expose:
 
 1. a superset of the HTTP API provided by the Jupyter Notebook server, and
-2. the equivalent Websocket API implemented by the Jupyter Notebook server.
+1. the equivalent Websocket API implemented by the Jupyter Notebook server.
 
 ## HTTP Resources
 

@@ -9,10 +9,10 @@ import os
 
 class BaseSpecHandler(CORSMixin, web.StaticFileHandler):
     """Exposes the ability to return specifications from static files"""
+
     @staticmethod
     def get_resource_metadata():
-        """Returns the (resource, mime-type) for the handlers spec.
-        """
+        """Returns the (resource, mime-type) for the handlers spec."""
         pass
 
     def initialize(self):
@@ -24,10 +24,9 @@ class BaseSpecHandler(CORSMixin, web.StaticFileHandler):
         web.StaticFileHandler.initialize(self, path=os.path.dirname(__file__))
 
     async def get(self):
-        """Handler for a get on a specific handler
-        """
+        """Handler for a get on a specific handler"""
         resource_name, content_type = self.get_resource_metadata()
-        self.set_header('Content-Type', content_type)
+        self.set_header("Content-Type", content_type)
         res = await web.StaticFileHandler.get(self, resource_name)
         return res
 
@@ -38,19 +37,21 @@ class BaseSpecHandler(CORSMixin, web.StaticFileHandler):
 
 class SpecJsonHandler(BaseSpecHandler):
     """Exposes a JSON swagger specification"""
+
     @staticmethod
     def get_resource_metadata():
-        return 'swagger.json','application/json'
+        return "swagger.json", "application/json"
 
 
 class APIYamlHandler(BaseSpecHandler):
     """Exposes a YAML swagger specification"""
+
     @staticmethod
     def get_resource_metadata():
-        return 'swagger.yaml', 'text/x-yaml'
+        return "swagger.yaml", "text/x-yaml"
 
 
 default_handlers = [
-    ('/api/{}'.format(SpecJsonHandler.get_resource_metadata()[0]), SpecJsonHandler),
-    ('/api/{}'.format(APIYamlHandler.get_resource_metadata()[0]), APIYamlHandler)
+    ("/api/{}".format(SpecJsonHandler.get_resource_metadata()[0]), SpecJsonHandler),
+    ("/api/{}".format(APIYamlHandler.get_resource_metadata()[0]), APIYamlHandler),
 ]

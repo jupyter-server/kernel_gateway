@@ -8,6 +8,7 @@ from kernel_gateway.notebook_http.cell.parser import APICellParser
 
 class TestAPICellParser:
     """Unit tests the APICellParser class."""
+
     def test_is_api_cell(self):
         """Parser should correctly identify annotated API cells."""
         parser = APICellParser(comment_prefix="#")
@@ -20,7 +21,7 @@ class TestAPICellParser:
             "# POST /:foo",
             "# POST /hello/:foo",
             "# GET /hello/:foo",
-            "# PUT /hello/world"
+            "# PUT /hello/world",
         ]
         parser = APICellParser(comment_prefix="#")
         endpoints = parser.endpoints(source_cells)
@@ -28,17 +29,15 @@ class TestAPICellParser:
 
         for index in range(0, len(expected_values)):
             endpoint, _ = endpoints[index]
-            assert expected_values[index] == endpoint, "Endpoint was not found in expected order"
+            assert (
+                expected_values[index] == endpoint
+            ), "Endpoint was not found in expected order"
 
     def test_endpoint_sort_custom_strategy(self):
         """Parser should sort duplicate endpoint paths using a custom sort
         strategy.
         """
-        source_cells = [
-            "# POST /1",
-            "# POST /+",
-            "# GET /a"
-        ]
+        source_cells = ["# POST /1", "# POST /+", "# GET /a"]
 
         def custom_sort_fun(endpoint):
             index = sys.maxsize
@@ -55,7 +54,9 @@ class TestAPICellParser:
 
         for index in range(0, len(expected_values)):
             endpoint, _ = endpoints[index]
-            assert expected_values[index] == endpoint, "Endpoint was not found in expected order"
+            assert (
+                expected_values[index] == endpoint
+            ), "Endpoint was not found in expected order"
 
     def test_get_cell_endpoint_and_verb(self):
         """Parser should extract API endpoint and verb from cell annotations."""
@@ -78,7 +79,7 @@ class TestAPICellParser:
             "# POST /foo/:bar",
             "# POST /foo",
             "ignored",
-            "# GET /foo/:bar"
+            "# GET /foo/:bar",
         ]
         parser = APICellParser(comment_prefix="#")
         endpoints = parser.endpoints(source_cells)
@@ -100,7 +101,7 @@ class TestAPICellParser:
             "# ResponseInfo POST /foo/:bar",
             "# ResponseInfo POST /foo",
             "ignored",
-            "# ResponseInfo GET /foo/:bar"
+            "# ResponseInfo GET /foo/:bar",
         ]
         parser = APICellParser(comment_prefix="#")
         endpoints = parser.endpoint_responses(source_cells)
@@ -110,5 +111,8 @@ class TestAPICellParser:
         assert len(endpoints["/foo"]) == 1
         assert len(endpoints["/foo/:bar"]) == 2
         assert endpoints["/foo"]["POST"] == "# ResponseInfo POST /foo\n"
-        assert endpoints["/foo/:bar"]["POST"] == "# ResponseInfo POST /foo/:bar\n# ResponseInfo POST /foo/:bar\n"
+        assert (
+            endpoints["/foo/:bar"]["POST"]
+            == "# ResponseInfo POST /foo/:bar\n# ResponseInfo POST /foo/:bar\n"
+        )
         assert endpoints["/foo/:bar"]["GET"] == "# ResponseInfo GET /foo/:bar\n"

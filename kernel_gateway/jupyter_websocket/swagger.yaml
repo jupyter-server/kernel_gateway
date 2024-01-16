@@ -1,4 +1,4 @@
-swagger: '2.0'
+swagger: "2.0"
 
 info:
   title: Jupyter Kernel Gateway API
@@ -60,7 +60,7 @@ paths:
         200:
           description: Returns information about the API
           schema:
-            $ref: '#/definitions/ApiInfo'
+            $ref: "#/definitions/ApiInfo"
   /api/swagger.yaml:
     get:
       produces:
@@ -96,7 +96,7 @@ paths:
               kernelspecs:
                 type: object
                 additionalProperties:
-                  $ref: '#/definitions/KernelSpec'
+                  $ref: "#/definitions/KernelSpec"
   /api/kernels:
     get:
       summary: List the JSON data for all currently running kernels
@@ -108,12 +108,12 @@ paths:
           schema:
             type: array
             items:
-              $ref: '#/definitions/Kernel'
+              $ref: "#/definitions/Kernel"
         403:
           description: This method is not accessible when
-            `KernelGatewayApp.list_kernels` is `False`. 
+            `KernelGatewayApp.list_kernels` is `False`.
           schema:
-            $ref: '#/definitions/Error'
+            $ref: "#/definitions/Error"
     post:
       summary: Start a kernel and return the uuid
       tags:
@@ -121,7 +121,7 @@ paths:
       parameters:
         - name: name
           in: body
-          description: Kernel spec name (defaults to default kernel spec for 
+          description: Kernel spec name (defaults to default kernel spec for
             server)
           schema:
             type: object
@@ -132,7 +132,7 @@ paths:
         201:
           description: The metadata about the newly created kernel.
           schema:
-            $ref: '#/definitions/Kernel'
+            $ref: "#/definitions/Kernel"
           headers:
             Location:
               description: Model for started kernel
@@ -141,10 +141,10 @@ paths:
         403:
           description: The maximum number of kernels have been created.
           schema:
-            $ref: '#/definitions/Error'
+            $ref: "#/definitions/Error"
   /api/kernels/{kernel_id}:
     parameters:
-      - $ref: '#/parameters/kernel'
+      - $ref: "#/parameters/kernel"
     get:
       summary: Get kernel information
       tags:
@@ -153,7 +153,7 @@ paths:
         200:
           description: Information about the kernel
           schema:
-            $ref: '#/definitions/Kernel'
+            $ref: "#/definitions/Kernel"
     delete:
       summary: Kill a kernel and delete the kernel id
       tags:
@@ -163,7 +163,7 @@ paths:
           description: Kernel deleted
   /api/kernels/{kernel_id}/channels:
     parameters:
-      - $ref: '#/parameters/kernel'
+      - $ref: "#/parameters/kernel"
     get:
       summary: Upgrades the connection to a websocket connection.
       tags:
@@ -173,7 +173,7 @@ paths:
           description: The connection will be upgraded to a websocket.
   /kernels/{kernel_id}/interrupt:
     parameters:
-      - $ref: '#/parameters/kernel'
+      - $ref: "#/parameters/kernel"
     post:
       summary: Interrupt a kernel
       tags:
@@ -183,7 +183,7 @@ paths:
           description: Kernel interrupted
   /kernels/{kernel_id}/restart:
     parameters:
-      - $ref: '#/parameters/kernel'
+      - $ref: "#/parameters/kernel"
     post:
       summary: Restart a kernel
       tags:
@@ -197,7 +197,7 @@ paths:
               type: string
               format: url
           schema:
-            $ref: '#/definitions/Kernel'
+            $ref: "#/definitions/Kernel"
   /api/sessions:
     get:
       summary: List available sessions
@@ -209,12 +209,12 @@ paths:
           schema:
             type: array
             items:
-              $ref: '#/definitions/Session'
+              $ref: "#/definitions/Session"
         403:
           description: This method is not accessible when the kernel gateway
             when the `list_kernels` option is `False`.
           schema:
-            $ref: '#/definitions/Error'
+            $ref: "#/definitions/Error"
     post:
       summary: Create a new session, or return an existing session if a session
         of the same name already exists.
@@ -224,12 +224,12 @@ paths:
         - name: session
           in: body
           schema:
-            $ref: '#/definitions/Session'
+            $ref: "#/definitions/Session"
       responses:
         201:
           description: Session created or returned
           schema:
-            $ref: '#/definitions/Session'
+            $ref: "#/definitions/Session"
           headers:
             Location:
               description: URL for session commands
@@ -238,11 +238,11 @@ paths:
         501:
           description: Session not available
           schema:
-            $ref: '#/definitions/Error'
+            $ref: "#/definitions/Error"
 
   /api/sessions/{session}:
     parameters:
-      - $ref: '#/parameters/session'
+      - $ref: "#/parameters/session"
     get:
       summary: Get session
       tags:
@@ -251,7 +251,7 @@ paths:
         200:
           description: Session
           schema:
-            $ref: '#/definitions/Session'
+            $ref: "#/definitions/Session"
     patch:
       summary: This can be used to rename the session.
       tags:
@@ -261,16 +261,16 @@ paths:
           in: body
           required: true
           schema:
-            $ref: '#/definitions/Session'
+            $ref: "#/definitions/Session"
       responses:
         200:
           description: Session
           schema:
-            $ref: '#/definitions/Session'
+            $ref: "#/definitions/Session"
         400:
           description: No data provided
           schema:
-            $ref: '#/definitions/Error'
+            $ref: "#/definitions/Error"
     delete:
       summary: Delete a session
       tags:
@@ -300,7 +300,7 @@ definitions:
         type: string
         description: Unique name for kernel
       KernelSpecFile:
-        $ref: '#/definitions/KernelSpecFile'
+        $ref: "#/definitions/KernelSpecFile"
         description: Kernel spec json file
       resources:
         type: object
@@ -350,8 +350,8 @@ definitions:
         items:
           type: object
           required:
-          - text
-          - url
+            - text
+            - url
           properties:
             text:
               type: string
@@ -407,7 +407,7 @@ definitions:
         type: string
         description: session type
       kernel:
-        $ref: '#/definitions/Kernel'
+        $ref: "#/definitions/Kernel"
   ApiInfo:
     description: Information about the api
     type: object

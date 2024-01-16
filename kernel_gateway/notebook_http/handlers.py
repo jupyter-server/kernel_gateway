@@ -7,17 +7,16 @@ import json
 import tornado.web
 from tornado.log import access_log
 from typing import Optional
-from .request_utils import parse_body, parse_args, format_request, headers_to_dict, parameterize_path
+from .request_utils import parse_body, parse_args, format_request, headers_to_dict
 from tornado.concurrent import Future
 from ..mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
 from functools import partial
 from .errors import UnsupportedMethodError, CodeExecutionError
 
 
-class NotebookAPIHandler(TokenAuthorizationMixin,
-                         CORSMixin,
-                         JSONErrorsMixin,
-                         tornado.web.RequestHandler):
+class NotebookAPIHandler(
+    TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin, tornado.web.RequestHandler
+):
     """Executes code from a notebook cell in response to HTTP requests at the
     route registered in association with this class.
 
@@ -46,7 +45,10 @@ class NotebookAPIHandler(TokenAuthorizationMixin,
     services.cell.parser.APICellParser for detail about how the source cells
     are identified, parsed, and associated with HTTP verbs and paths.
     """
-    def initialize(self, sources, response_sources, kernel_pool, kernel_name, kernel_language=''):
+
+    def initialize(
+        self, sources, response_sources, kernel_pool, kernel_name, kernel_language=""
+    ):
         self.kernel_pool = kernel_pool
         self.sources = sources
         self.kernel_name = kernel_name
@@ -74,15 +76,15 @@ class NotebookAPIHandler(TokenAuthorizationMixin,
             Dictionary of results from a kernel with at least the keys error,
             stream, and result
         """
-        if result_accumulator['error']:
-            future.set_exception(CodeExecutionError(result_accumulator['error']))
-        elif len(result_accumulator['stream']) > 0:
-            future.set_result(''.join(result_accumulator['stream']))
-        elif result_accumulator['result']:
-            future.set_result(json.dumps(result_accumulator['result']))
+        if result_accumulator["error"]:
+            future.set_exception(CodeExecutionError(result_accumulator["error"]))
+        elif len(result_accumulator["stream"]) > 0:
+            future.set_result("".join(result_accumulator["stream"]))
+        elif result_accumulator["result"]:
+            future.set_result(json.dumps(result_accumulator["result"]))
         else:
             # If nothing was set, return an empty value
-            future.set_result('')
+            future.set_result("")
 
     def on_recv(self, result_accumulator, future, parent_header, msg):
         """Collects ipoub messages associated with code execution request
@@ -105,24 +107,29 @@ class NotebookAPIHandler(TokenAuthorizationMixin,
         msg : dict
             Kernel message received from the iopub channel
         """
-        if msg['parent_header']['msg_id'] == parent_header:
+        if msg["parent_header"]["msg_id"] == parent_header:
             # On idle status, exit our loop
-            if msg['header']['msg_type'] == 'status' and msg['content']['execution_state'] == 'idle':
+            if (
+                msg["header"]["msg_type"] == "status"
+                and msg["content"]["execution_state"] == "idle"
+            ):
                 self.finish_future(future, result_accumulator)
             # Store the execute result
-            elif msg['header']['msg_type'] == 'execute_result':
-                result_accumulator['result'] = msg['content']['data']
+            elif msg["header"]["msg_type"] == "execute_result":
+                result_accumulator["result"] = msg["content"]["data"]
             # Accumulate the stream messages
-            elif msg['header']['msg_type'] == 'stream':
+            elif msg["header"]["msg_type"] == "stream":
                 # Only take stream output if it is on stdout or if the kernel
                 # is non-confirming and does not name the stream
-                if 'name' not in msg['content'] or msg['content']['name'] == 'stdout':
-                    result_accumulator['stream'].append((msg['content']['text']))
+                if "name" not in msg["content"] or msg["content"]["name"] == "stdout":
+                    result_accumulator["stream"].append((msg["content"]["text"]))
             # Store the error message
-            elif msg['header']['msg_type'] == 'error':
-                error_name = msg['content']['ename']
-                error_value = msg['content']['evalue']
-                result_accumulator['error'] = 'Error {}: {} \n'.format(error_name, error_value)
+            elif msg["header"]["msg_type"] == "error":
+                error_name = msg["content"]["ename"]
+                error_value = msg["content"]["evalue"]
+                result_accumulator["error"] = "Error {}: {} \n".format(
+                    error_name, error_value
+                )
 
     def execute_code(self, kernel_client, kernel_id, source_code):
         """Executes `source_code` on the kernel specified.
@@ -151,7 +158,7 @@ class NotebookAPIHandler(TokenAuthorizationMixin,
             If the kernel returns any error
         """
         future = Future()
-        result_accumulator = {'stream': [], 'error': None, 'result': None}
+        result_accumulator = {"stream": [], "error": None, "result": None}
         parent_header = kernel_client.execute(source_code)
         on_recv_func = partial(self.on_recv, result_accumulator, future, parent_header)
         self.kernel_pool.on_recv(kernel_id, on_recv_func)
@@ -172,43 +179,51 @@ class NotebookAPIHandler(TokenAuthorizationMixin,
                 raise UnsupportedMethodError(self.request.method)
 
             # Set the Content-Type and status to default values
-            self.set_header('Content-Type', 'text/plain')
+            self.set_header("Content-Type", "text/plain")
             self.set_status(200)
 
             # Get the source to execute in response to this request
             source_code = self.sources[self.request.method]
             # Build the request dictionary
-            request = json.dumps({
-                'body': parse_body(self.request),
-                'args': parse_args(self.request.query_arguments),
-                'path': self.path_kwargs,
-                'headers': headers_to_dict(self.request.headers)
-            })
+            request = json.dumps(
+                {
+                    "body": parse_body(self.request),
+                    "args": parse_args(self.request.query_arguments),
+                    "path": self.path_kwargs,
+                    "headers": headers_to_dict(self.request.headers),
+                }
+            )
             # Turn the request string into a valid code string
             request_code = format_request(request, self.kernel_language)
 
             # Run the request and source code and yield until there's a result
-            access_log.debug('Request code for notebook cell is: {}'.format(request_code))
+            access_log.debug(
+                "Request code for notebook cell is: {}".format(request_code)
+            )
             await self.execute_code(kernel_client, kernel_id, request_code)
-            source_result = await self.execute_code(kernel_client, kernel_id, source_code)
+            source_result = await self.execute_code(
+                kernel_client, kernel_id, source_code
+            )
 
             # If a response code cell exists, execute it
             if self.request.method in self.response_sources:
                 response_code = self.response_sources[self.request.method]
-                response_future = self.execute_code(kernel_client, kernel_id, response_code)
+                response_future = self.execute_code(
+                    kernel_client, kernel_id, response_code
+                )
 
                 # Wait for the response and parse the json value
                 response_result = await response_future
                 response = json.loads(response_result)
 
                 # Copy all the header values into the tornado response
-                if 'headers' in response:
-                    for header in response['headers']:
-                        self.set_header(header, response['headers'][header])
+                if "headers" in response:
+                    for header in response["headers"]:
+                        self.set_header(header, response["headers"][header])
 
                 # Set the status code if it exists
-                if 'status' in response:
-                    self.set_status(response['status'])
+                if "status" in response:
+                    self.set_status(response["status"])
 
             # Write the result of the source code execution
             if source_result:
@@ -246,12 +261,11 @@ class NotebookAPIHandler(TokenAuthorizationMixin,
         self.finish()
 
 
-class NotebookDownloadHandler(TokenAuthorizationMixin,
-                              CORSMixin,
-                              JSONErrorsMixin,
-                              tornado.web.StaticFileHandler):
-    """Handles requests to download the annotated notebook behind the web API.
-    """
+class NotebookDownloadHandler(
+    TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin, tornado.web.StaticFileHandler
+):
+    """Handles requests to download the annotated notebook behind the web API."""
+
     def initialize(self, path: str, default_filename: Optional[str] = None):
         self.dirname, self.filename = os.path.split(path)
         super(NotebookDownloadHandler, self).initialize(self.dirname)

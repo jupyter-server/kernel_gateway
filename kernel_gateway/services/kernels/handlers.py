@@ -6,26 +6,27 @@ import os
 
 import tornado
 import jupyter_server.services.kernels.handlers as server_handlers
-from tornado import gen
 from functools import partial
 from ...mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
 
 
-class MainKernelHandler(TokenAuthorizationMixin,
-                        CORSMixin,
-                        JSONErrorsMixin,
-                        server_handlers.MainKernelHandler):
+class MainKernelHandler(
+    TokenAuthorizationMixin,
+    CORSMixin,
+    JSONErrorsMixin,
+    server_handlers.MainKernelHandler,
+):
     """Extends the notebook main kernel handler with token auth, CORS, and
     JSON errors.
     """
 
     @property
     def env_whitelist(self):
-        return self.settings['kg_personality'].env_whitelist
+        return self.settings["kg_personality"].env_whitelist
 
     @property
     def env_process_whitelist(self):
-        return self.settings['kg_env_process_whitelist']
+        return self.settings["kg_env_process_whitelist"]
 
     async def post(self):
         """Overrides the super class method to honor the max number of allowed
@@ -41,31 +42,43 @@ class MainKernelHandler(TokenAuthorizationMixin,
         tornado.web.HTTPError
             403 Forbidden if the limit is reached
         """
-        max_kernels = self.settings['kg_max_kernels']
+        max_kernels = self.settings["kg_max_kernels"]
         if max_kernels is not None:
-            km = self.settings['kernel_manager']
+            km = self.settings["kernel_manager"]
             kernels = km.list_kernels()
             if len(kernels) >= max_kernels:
-                raise tornado.web.HTTPError(403, 'Resource Limit')
+                raise tornado.web.HTTPError(403, "Resource Limit")
 
         # Try to get env vars from the request body
         model = self.get_json_body()
-        if model is not None and 'env' in model:
-            if not isinstance(model['env'], dict):
+        if model is not None and "env" in model:
+            if not isinstance(model["env"], dict):
                 raise tornado.web.HTTPError(400)
             # Start with the PATH from the current env. Do not provide the entire environment
             # which might contain server secrets that should not be passed to kernels.
-            env = {'PATH': os.getenv('PATH', '')}
+            env = {"PATH": os.getenv("PATH", "")}
             # Whitelist environment variables from current process environment
-            env.update({key: value for key, value in os.environ.items()
-                       if key in self.env_process_whitelist})
+            env.update(
+                {
+                    key: value
+                    for key, value in os.environ.items()
+                    if key in self.env_process_whitelist
+                }
+            )
             # Whitelist KERNEL_* args and those allowed by configuration from client
-            env.update({key: value for key, value in model['env'].items()
-                       if key.startswith('KERNEL_') or key in self.env_whitelist})
+            env.update(
+                {
+                    key: value
+                    for key, value in model["env"].items()
+                    if key.startswith("KERNEL_") or key in self.env_whitelist
+                }
+            )
             # No way to override the call to start_kernel on the kernel manager
             # so do a temporary partial (ugh)
             orig_start = self.kernel_manager.start_kernel
-            self.kernel_manager.start_kernel = partial(self.kernel_manager.start_kernel, env=env)
+            self.kernel_manager.start_kernel = partial(
+                self.kernel_manager.start_kernel, env=env
+            )
             try:
                 await super().post()
             finally:
@@ -84,8 +97,8 @@ class MainKernelHandler(TokenAuthorizationMixin,
         tornado.web.HTTPError
             403 Forbidden if kernel listing is disabled
         """
-        if not self.settings.get('kg_list_kernels'):
-            raise tornado.web.HTTPError(403, 'Forbidden')
+        if not self.settings.get("kg_list_kernels"):
+            raise tornado.web.HTTPError(403, "Forbidden")
         else:
             await super(MainKernelHandler, self).get()
 
@@ -94,13 +107,13 @@ class MainKernelHandler(TokenAuthorizationMixin,
         self.finish()
 
 
-class KernelHandler(TokenAuthorizationMixin,
-                    CORSMixin,
-                    JSONErrorsMixin,
-                    server_handlers.KernelHandler):
+class KernelHandler(
+    TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin, server_handlers.KernelHandler
+):
     """Extends the notebook kernel handler with token auth, CORS, and
     JSON errors.
     """
+
     def options(self, **kwargs):
         """Method for properly handling CORS pre-flight"""
         self.finish()

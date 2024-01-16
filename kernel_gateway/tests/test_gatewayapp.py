@@ -9,7 +9,7 @@ import os
 from kernel_gateway.gatewayapp import KernelGatewayApp
 from kernel_gateway import __version__
 
-RESOURCES = os.path.join(os.path.dirname(__file__), 'resources')
+RESOURCES = os.path.join(os.path.dirname(__file__), "resources")
 
 
 class TestGatewayAppConfig:

@@ -3,8 +3,8 @@
 The kernel gateway adheres to the [Jupyter common configuration approach](https://jupyter.readthedocs.io/en/latest/use/config.html). You can configure an instance of the kernel gateway using:
 
 1. A configuration file
-2. Command line parameters
-3. Environment variables
+1. Command line parameters
+1. Environment variables
 
 To generate a template configuration file, run the following:
 

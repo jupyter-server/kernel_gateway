@@ -74,7 +74,9 @@ def jp_configurable_serverapp(
             jp_asyncio_loop.run_until_complete(initialize_app())
         # Reroute all logging StreamHandlers away from stdin/stdout since pytest hijacks
         # these streams and closes them at unfortunate times.
-        stream_handlers = [h for h in app.log.handlers if isinstance(h, logging.StreamHandler)]
+        stream_handlers = [
+            h for h in app.log.handlers if isinstance(h, logging.StreamHandler)
+        ]
         for handler in stream_handlers:
             handler.setStream(jp_logging_stream)
         app.log.propagate = True
