@@ -13,7 +13,6 @@ from ..mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
 from functools import partial
 from .errors import UnsupportedMethodError, CodeExecutionError
 
-
 class NotebookAPIHandler(
     TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin, tornado.web.RequestHandler
 ):

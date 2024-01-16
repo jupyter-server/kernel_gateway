@@ -8,7 +8,8 @@ import importlib
 from ..base.handlers import default_handlers as default_base_handlers
 from ..services.kernels.pool import ManagedKernelPool
 from .swagger.handlers import SwaggerSpecHandler
-from .handlers import NotebookAPIHandler, parameterize_path, NotebookDownloadHandler
+from .request_utils import parameterize_path
+from .handlers import NotebookAPIHandler, NotebookDownloadHandler
 from jupyter_server.utils import url_path_join
 from traitlets import Bool, Unicode, Dict, default
 from traitlets.config.configurable import LoggingConfigurable
