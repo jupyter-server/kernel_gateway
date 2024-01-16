@@ -7,26 +7,8 @@ on:
       - main
 
 jobs:
-  check_duplicate_runs:
-    name: Check for duplicate runs
-    continue-on-error: true
-    runs-on: ubuntu-latest
-    outputs:
-      should_skip: ${{ steps.skip_check.outputs.should_skip }}
-    steps:
-      - id: skip_check
-        uses: fkirc/skip-duplicate-actions@master
-        with:
-          concurrent_skipping: always
-          cancel_others: true
-          skip_after_successful_duplicate: true
-          paths_ignore: '["**/README.md", "**/CHANGELOG.md", "**/LICENSE.md"]'
-          do_not_skip: '["pull_request"]'
-
   tests:
     name: Run tests (Python ${{matrix.python}})
-    needs: check_duplicate_runs
-    if: ${{ needs.check_duplicate_runs.outputs.should_skip != 'true' }}
 
     strategy:
       matrix:
@@ -39,25 +21,11 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python }}
-
-    - name: Cache pip
-      uses: actions/cache@v2
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-python-${{ matrix.python }}-pip-${{ hashFiles('**/requirements*.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-python-${{ matrix.python }}-pip-${{ hashFiles('**/requirements*.txt') }}
-          ${{ runner.os }}-python-${{ matrix.python }}-pip-
-          ${{ runner.os }}-python
-          ${{ runner.os }}-
+    - name: Base Setup
+      uses: jupyterlab/maintainer-tools/.github/actions/base-setup@v1
 
     - name: Install dependencies
       run: |
