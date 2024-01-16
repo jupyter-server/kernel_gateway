@@ -16,7 +16,6 @@ import socket
 import ssl
 import threading
 from base64 import encodebytes
-from distutils.util import strtobool
 
 import nbformat
 from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
@@ -189,7 +188,7 @@ class KernelGatewayApp(JupyterApp):
     )
     @default('trust_xheaders')
     def trust_xheaders_default(self):
-        return strtobool(os.getenv(self.trust_xheaders_env, 'False'))
+        return os.getenv(self.trust_xheaders_env, 'False').lower() == 'true'
 
 
     max_age_env = 'KG_MAX_AGE'

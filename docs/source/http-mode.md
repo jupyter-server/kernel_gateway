@@ -46,6 +46,8 @@ The `REQUEST` object currently contains the following properties:
 * `path` - An object of key-value pairs representing path parameters and their values.
 * `headers` - An object of key-value pairs where a key is a HTTP header name and a value is the HTTP header value. If there are multiple values are specified for a  header, the value will be an array.
 
+{#request-content-type-and-request-body-processing}
+
 ### Request Content-Type and Request Body Processing
 
 If the HTTP request to the kernel gateway has a `Content-Type` header the value of `REQUEST.body` may change. Below is the list of outcomes for various mime-types:
