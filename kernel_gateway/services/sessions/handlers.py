@@ -2,9 +2,10 @@
 # Distributed under the terms of the Modified BSD License.
 """Tornado handlers for session CRUD."""
 
-import tornado
 import jupyter_server.services.sessions.handlers as server_handlers
-from ...mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
+import tornado
+
+from ...mixins import CORSMixin, JSONErrorsMixin, TokenAuthorizationMixin
 
 
 class SessionRootHandler(

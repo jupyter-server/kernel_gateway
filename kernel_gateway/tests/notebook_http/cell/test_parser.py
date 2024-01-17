@@ -3,6 +3,7 @@
 """Tests for notebook cell parsing."""
 
 import sys
+
 from kernel_gateway.notebook_http.cell.parser import APICellParser
 
 
@@ -27,7 +28,7 @@ class TestAPICellParser:
         endpoints = parser.endpoints(source_cells)
         expected_values = ["/hello/world", "/hello/:foo", "/:foo"]
 
-        for index in range(0, len(expected_values)):
+        for index in range(len(expected_values)):
             endpoint, _ = endpoints[index]
             assert expected_values[index] == endpoint, "Endpoint was not found in expected order"
 
@@ -50,7 +51,7 @@ class TestAPICellParser:
         endpoints = parser.endpoints(source_cells, custom_sort_fun)
         expected_values = ["/+", "/a", "/1"]
 
-        for index in range(0, len(expected_values)):
+        for index in range(len(expected_values)):
             endpoint, _ = endpoints[index]
             assert expected_values[index] == endpoint, "Endpoint was not found in expected order"
 

@@ -3,9 +3,10 @@
 """Kernel manager that optionally seeds kernel memory."""
 import os
 from typing import List, Optional
-from traitlets import default
-from jupyter_server.services.kernels.kernelmanager import AsyncMappingKernelManager
+
 from jupyter_client.ioloop import AsyncIOLoopKernelManager
+from jupyter_server.services.kernels.kernelmanager import AsyncMappingKernelManager
+from traitlets import default
 
 
 class SeedingMappingKernelManager(AsyncMappingKernelManager):

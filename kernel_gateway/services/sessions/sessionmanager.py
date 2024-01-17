@@ -3,9 +3,10 @@
 """Session manager that keeps all its metadata in memory."""
 
 import uuid
+from typing import List, Optional
+
 from tornado import web
 from traitlets.config.configurable import LoggingConfigurable
-from typing import List, Optional
 
 
 class SessionManager(LoggingConfigurable):

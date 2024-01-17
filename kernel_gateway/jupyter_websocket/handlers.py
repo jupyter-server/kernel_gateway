@@ -2,9 +2,11 @@
 # Distributed under the terms of the Modified BSD License.
 """Tornado handlers for kernel specs."""
 
-from tornado import web
-from ..mixins import CORSMixin
 import os
+
+from tornado import web
+
+from ..mixins import CORSMixin
 
 
 class BaseSpecHandler(CORSMixin, web.StaticFileHandler):
@@ -13,7 +15,6 @@ class BaseSpecHandler(CORSMixin, web.StaticFileHandler):
     @staticmethod
     def get_resource_metadata():
         """Returns the (resource, mime-type) for the handlers spec."""
-        pass
 
     def initialize(self):
         """Initializes the instance of this class to serve files.
@@ -52,6 +53,6 @@ class APIYamlHandler(BaseSpecHandler):
 
 
 default_handlers = [
-    ("/api/{}".format(SpecJsonHandler.get_resource_metadata()[0]), SpecJsonHandler),
-    ("/api/{}".format(APIYamlHandler.get_resource_metadata()[0]), APIYamlHandler),
+    (f"/api/{SpecJsonHandler.get_resource_metadata()[0]}", SpecJsonHandler),
+    (f"/api/{APIYamlHandler.get_resource_metadata()[0]}", APIYamlHandler),
 ]
