@@ -2,15 +2,14 @@
 # Distributed under the terms of the Modified BSD License.
 """Tests for notebook request utilities."""
 
-import json
 import unittest
-
+import json
 from kernel_gateway.notebook_http.request_utils import (
     format_request,
-    headers_to_dict,
-    parameterize_path,
-    parse_args,
     parse_body,
+    parameterize_path,
+    headers_to_dict,
+    parse_args,
 )
 
 
@@ -20,7 +19,7 @@ class MockRequest(dict):
         self.__dict__ = self
 
 
-class MockHeaders:
+class MockHeaders(object):
     def __init__(self, headers, **kwargs):
         self.headers = headers
 

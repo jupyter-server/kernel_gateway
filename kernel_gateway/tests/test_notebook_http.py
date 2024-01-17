@@ -3,10 +3,10 @@
 """Tests for notebook-http mode."""
 
 import asyncio
-import json
 import os
-
+import json
 import pytest
+
 from tornado.httpclient import HTTPClientError
 from traitlets.config import Config
 
@@ -14,7 +14,7 @@ from ..notebook_http.swagger.handlers import SwaggerSpecHandler
 from .test_gatewayapp import RESOURCES
 
 
-@pytest.fixture()
+@pytest.fixture
 def jp_server_config():
     """Allows tests to setup their specific configuration values."""
     config = {

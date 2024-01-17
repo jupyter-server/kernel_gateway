@@ -4,7 +4,6 @@
 
 import re
 import sys
-
 from traitlets import Unicode
 from traitlets.config.configurable import LoggingConfigurable
 

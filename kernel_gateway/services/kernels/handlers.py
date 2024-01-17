@@ -3,12 +3,12 @@
 """Tornado handlers for kernel CRUD and communication."""
 
 import os
-from functools import partial
 
-import jupyter_server.services.kernels.handlers as server_handlers
 import tornado
-
-from ...mixins import CORSMixin, JSONErrorsMixin, TokenAuthorizationMixin
+import jupyter_server.services.kernels.handlers as server_handlers
+from tornado import gen
+from functools import partial
+from ...mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
 
 
 class MainKernelHandler(

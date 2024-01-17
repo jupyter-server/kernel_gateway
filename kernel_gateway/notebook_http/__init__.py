@@ -2,18 +2,17 @@
 # Distributed under the terms of the Modified BSD License.
 """Notebook HTTP personality for the Kernel Gateway"""
 
-import importlib
 import os
-
 import tornado
-from jupyter_server.utils import url_path_join
-from traitlets import Bool, Dict, Unicode, default
-from traitlets.config.configurable import LoggingConfigurable
-
+import importlib
 from ..base.handlers import default_handlers as default_base_handlers
 from ..services.kernels.pool import ManagedKernelPool
-from .handlers import NotebookAPIHandler, NotebookDownloadHandler, parameterize_path
+from .cell.parser import APICellParser
 from .swagger.handlers import SwaggerSpecHandler
+from .handlers import NotebookAPIHandler, parameterize_path, NotebookDownloadHandler
+from jupyter_server.utils import url_path_join
+from traitlets import Bool, Unicode, Dict, default
+from traitlets.config.configurable import LoggingConfigurable
 
 
 class NotebookHTTPPersonality(LoggingConfigurable):
@@ -69,7 +68,7 @@ class NotebookHTTPPersonality(LoggingConfigurable):
         # Import the module to use for cell endpoint parsing
         cell_parser_module = importlib.import_module(self.cell_parser)
         # Build the parser using the comment syntax for the notebook language
-        func = cell_parser_module.create_parser
+        func = getattr(cell_parser_module, "create_parser")
         try:
             kernel_language = self.parent.seed_notebook["metadata"]["language_info"]["name"]
         except (AttributeError, KeyError):
@@ -96,13 +95,13 @@ class NotebookHTTPPersonality(LoggingConfigurable):
         # Register the NotebookDownloadHandler if configuration allows
         if self.allow_notebook_download:
             path = url_path_join("/", self.parent.base_url, r"/_api/source")
-            self.log.info(f"Registering resource: {path}, methods: (GET)")
+            self.log.info("Registering resource: {}, methods: (GET)".format(path))
             handlers.append((path, NotebookDownloadHandler, {"path": self.parent.seed_uri}))
 
         # Register a static path handler if configuration allows
         if self.static_path is not None:
             path = url_path_join("/", self.parent.base_url, r"/public/(.*)")
-            self.log.info(f"Registering resource: {path}, methods: (GET)")
+            self.log.info("Registering resource: {}, methods: (GET)".format(path))
             handlers.append((path, tornado.web.StaticFileHandler, {"path": self.static_path}))
 
         # Discover the notebook endpoints and their implementations
@@ -149,7 +148,7 @@ class NotebookHTTPPersonality(LoggingConfigurable):
                 },
             )
         )
-        self.log.info(f"Registering resource: {path}, methods: (GET)")
+        self.log.info("Registering resource: {}, methods: (GET)".format(path))
 
         # Add the 404 catch-all last
         handlers.append(default_base_handlers[-1])

@@ -4,12 +4,10 @@
 notebook-http mode, notebook-defined API.
 """
 
-import json
-
 import tornado.web
-
-from ...mixins import CORSMixin, JSONErrorsMixin, TokenAuthorizationMixin
+import json
 from .builders import SwaggerSpecBuilder
+from ...mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
 
 
 class SwaggerSpecHandler(

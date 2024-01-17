@@ -3,15 +3,14 @@
 """Tests for handler mixins."""
 
 import json
-from unittest.mock import Mock
-
 import pytest
+from unittest.mock import Mock
 from tornado import web
 
-from kernel_gateway.mixins import JSONErrorsMixin, TokenAuthorizationMixin
+from kernel_gateway.mixins import TokenAuthorizationMixin, JSONErrorsMixin
 
 
-class SuperTokenAuthHandler:
+class SuperTokenAuthHandler(object):
     """Super class for the handler using TokenAuthorizationMixin."""
 
     is_prepared = False
@@ -37,10 +36,10 @@ class CustomTokenAuthHandler(TokenAuthorizationMixin, SuperTokenAuthHandler):
         return self.arguments.get(name, default)
 
 
-@pytest.fixture()
+@pytest.fixture
 def auth_mixin():
     auth_mixin_instance = CustomTokenAuthHandler("YouKnowMe")
-    return auth_mixin_instance
+    yield auth_mixin_instance
 
 
 class TestTokenAuthMixin:
@@ -147,10 +146,10 @@ class CustomJSONErrorsHandler(JSONErrorsMixin):
         self.headers[name] = value
 
 
-@pytest.fixture()
+@pytest.fixture
 def errors_mixin():
     errors_mixin_instance = CustomJSONErrorsHandler()
-    return errors_mixin_instance
+    yield errors_mixin_instance
 
 
 class TestJSONErrorsMixin:

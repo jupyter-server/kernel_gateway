@@ -4,40 +4,48 @@
 
 import asyncio
 import errno
-import hashlib
-import hmac
 import importlib
 import logging
+import hashlib
+import hmac
 import os
-import select
-import signal
-import ssl
 import sys
+import signal
+import select
+import socket
+import ssl
 import threading
 from base64 import encodebytes
-from urllib.parse import urlparse
 
 import nbformat
-from jupyter_client.kernelspec import KernelSpecManager
-from jupyter_core.application import JupyterApp, base_aliases
-from jupyter_core.paths import secure_write
-from jupyter_server.auth.authorizer import AllowAllAuthorizer, Authorizer
-from jupyter_server.serverapp import random_ports
-from jupyter_server.services.kernels.connection.base import BaseKernelWebsocketConnection
-from jupyter_server.services.kernels.connection.channels import ZMQChannelsWebsocketConnection
 from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
-from tornado import httpserver, ioloop, web
-from tornado.log import LogFormatter, enable_pretty_logging
-from traitlets import Bytes, CBool, Instance, Integer, List, Type, Unicode, default, observe
 
+from urllib.parse import urlparse
+from traitlets import Unicode, Integer, Bytes, default, observe, Type, Instance, List, CBool
+
+from jupyter_core.application import JupyterApp, base_aliases
+from jupyter_client.kernelspec import KernelSpecManager
+
+from tornado import httpserver
+from tornado import web, ioloop
+from tornado.log import enable_pretty_logging, LogFormatter
+
+from jupyter_core.paths import secure_write
+from jupyter_server.serverapp import random_ports
 from ._version import __version__
+from .services.sessions.sessionmanager import SessionManager
+from .services.kernels.manager import SeedingMappingKernelManager
+
 from .auth.identity import GatewayIdentityProvider
-from .jupyter_websocket import JupyterWebsocketPersonality
 
 # Only present for generating help documentation
 from .notebook_http import NotebookHTTPPersonality
-from .services.kernels.manager import SeedingMappingKernelManager
-from .services.sessions.sessionmanager import SessionManager
+from .jupyter_websocket import JupyterWebsocketPersonality
+
+from jupyter_server.auth.authorizer import AllowAllAuthorizer, Authorizer
+from jupyter_server.services.kernels.connection.base import BaseKernelWebsocketConnection
+from jupyter_server.services.kernels.connection.channels import ZMQChannelsWebsocketConnection
+
 
 # Add additional command line aliases
 aliases = dict(base_aliases)
@@ -586,7 +594,7 @@ class KernelGatewayApp(JupyterApp):
                 raise RuntimeError(msg)
 
         api_module = self._load_api_module(self.api)
-        func = api_module.create_personality
+        func = getattr(api_module, "create_personality")
         self.personality = func(parent=self, log=self.log)
 
         self.io_loop.call_later(
@@ -693,7 +701,7 @@ class KernelGatewayApp(JupyterApp):
         for port in random_ports(self.port, self.port_retries + 1):
             try:
                 self.http_server.listen(port, self.ip)
-            except OSError as e:
+            except socket.error as e:
                 if e.errno == errno.EADDRINUSE:
                     self.log.info("The port %i is already in use, trying another port." % port)
                     continue

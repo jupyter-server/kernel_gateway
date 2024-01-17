@@ -1,13 +1,11 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
 
-import logging
 import os
-from binascii import hexlify
-
+import logging
 import pytest
+from binascii import hexlify
 from traitlets.config import Config
-
 from kernel_gateway.gatewayapp import KernelGatewayApp
 
 pytest_plugins = ["pytest_jupyter.jupyter_core", "pytest_jupyter.jupyter_server"]
@@ -100,7 +98,7 @@ def jp_server_cleanup(jp_asyncio_loop):
     KernelGatewayApp.clear_instance()
 
 
-@pytest.fixture()
+@pytest.fixture
 def jp_auth_header(jp_serverapp):
     """Configures an authorization header using the token from the serverapp fixture."""
     return {"Authorization": f"token {jp_serverapp.identity_provider.token}"}

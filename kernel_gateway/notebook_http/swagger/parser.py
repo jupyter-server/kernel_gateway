@@ -4,11 +4,9 @@
 
 import json
 import re
-
+from kernel_gateway.notebook_http.cell.parser import first_path_param_index, APICellParser
 from traitlets import List, Unicode
 from traitlets.config.configurable import LoggingConfigurable
-
-from kernel_gateway.notebook_http.cell.parser import first_path_param_index
 
 
 def _swaggerlet_from_markdown(cell_source):
@@ -19,11 +17,11 @@ def _swaggerlet_from_markdown(cell_source):
     lines = cell_source.splitlines()
     # pull out the first block comment
     if len(lines) > 2:
-        for i in range(len(lines)):
+        for i in range(0, len(lines)):
             if lines[i].startswith("```"):
                 lines = lines[i + 1 :]
                 break
-        for i in range(len(lines)):
+        for i in range(0, len(lines)):
             if lines[i].startswith("```"):
                 lines = lines[:i]
                 break

@@ -2,10 +2,10 @@
 # Distributed under the terms of the Modified BSD License.
 """Tornado handlers for kernel specs."""
 
-import jupyter_server.kernelspecs.handlers as server_kernelspecs_resources_handlers
 import jupyter_server.services.kernelspecs.handlers as server_handlers
+import jupyter_server.kernelspecs.handlers as server_kernelspecs_resources_handlers
 
-from ...mixins import CORSMixin, JSONErrorsMixin, TokenAuthorizationMixin
+from ...mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
 
 # Extends the default handlers from the jupyter_server package with token auth, CORS
 # and JSON errors.

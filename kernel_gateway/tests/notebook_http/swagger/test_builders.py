@@ -4,8 +4,8 @@
 
 import json
 
-from kernel_gateway.notebook_http.cell.parser import APICellParser
 from kernel_gateway.notebook_http.swagger.builders import SwaggerSpecBuilder
+from kernel_gateway.notebook_http.cell.parser import APICellParser
 from kernel_gateway.notebook_http.swagger.parser import SwaggerCellParser
 
 

@@ -4,24 +4,23 @@
 
 import json
 import os
+import pytest
 import uuid
 
-import pytest
 from jupyter_client.kernelspec import NoSuchKernel
-from tornado.escape import json_decode, json_encode, url_escape
 from tornado.gen import sleep
 from tornado.httpclient import HTTPClientError
+from tornado.escape import json_encode, json_decode, url_escape
 from tornado.web import HTTPError
 from traitlets.config import Config
 
 from kernel_gateway.gatewayapp import KernelGatewayApp
 from kernel_gateway.services.kernels.manager import AsyncMappingKernelManager
 from kernel_gateway.services.sessions.sessionmanager import SessionManager
-
 from .test_gatewayapp import RESOURCES
 
 
-@pytest.fixture()
+@pytest.fixture
 def jp_server_config():
     """Allows tests to setup their specific configuration values."""
     config = {
@@ -32,7 +31,7 @@ def jp_server_config():
     return Config(config)
 
 
-@pytest.fixture()
+@pytest.fixture
 def spawn_kernel(jp_fetch, jp_http_port, jp_base_url, jp_ws_fetch):
     """Spawns a kernel where request.param contains the request body and returns the websocket."""
 
