@@ -34,8 +34,8 @@ def jp_configurable_serverapp(
     .. code-block:: python
 
       def my_test(jp_configurable_serverapp):
-         app = jp_configurable_serverapp(...)
-         ...
+          app = jp_configurable_serverapp(...)
+          ...
     """
     KernelGatewayApp.clear_instance()
 

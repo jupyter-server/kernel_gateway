@@ -69,8 +69,8 @@ make docs
 After modifying any of the APIs in `jupyter-websocket` mode, you must update the project's Swagger API specification.
 
 1. Load the current
-[swagger.yaml](https://github.com/jupyter/kernel_gateway/blob/master/kernel_gateway/jupyter_websocket/swagger.yaml) file into the [Swagger editor](http://editor.swagger.io/#/).
-2. Make your changes.
-3. Export both the `swagger.json` and `swagger.yaml` files.
-4. Place the files in `kernel_gateway/jupyter_websocket`.
-5. Add, commit, and PR the changes.
+   [swagger.yaml](https://github.com/jupyter/kernel_gateway/blob/master/kernel_gateway/jupyter_websocket/swagger.yaml) file into the [Swagger editor](http://editor.swagger.io/#/).
+1. Make your changes.
+1. Export both the `swagger.json` and `swagger.yaml` files.
+1. Place the files in `kernel_gateway/jupyter_websocket`.
+1. Add, commit, and PR the changes.

@@ -7,13 +7,13 @@ import jupyter_server.services.sessions.handlers as server_handlers
 from ...mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
 
 
-class SessionRootHandler(TokenAuthorizationMixin,
-                        CORSMixin,
-                        JSONErrorsMixin,
-                        server_handlers.SessionRootHandler):
+class SessionRootHandler(
+    TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin, server_handlers.SessionRootHandler
+):
     """Extends the notebook root session handler with token auth, CORS, and
     JSON errors.
     """
+
     async def get(self):
         """Overrides the super class method to honor the kernel listing
         configuration setting.
@@ -23,8 +23,8 @@ class SessionRootHandler(TokenAuthorizationMixin,
         tornado.web.HTTPError
             If kg_list_kernels is False, respond with 403 Forbidden
         """
-        if 'kg_list_kernels' not in self.settings or self.settings['kg_list_kernels'] != True:
-            raise tornado.web.HTTPError(403, 'Forbidden')
+        if "kg_list_kernels" not in self.settings or self.settings["kg_list_kernels"] != True:
+            raise tornado.web.HTTPError(403, "Forbidden")
         else:
             await super(SessionRootHandler, self).get()
 

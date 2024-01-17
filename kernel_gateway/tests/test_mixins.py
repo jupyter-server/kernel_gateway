@@ -12,6 +12,7 @@ from kernel_gateway.mixins import TokenAuthorizationMixin, JSONErrorsMixin
 
 class SuperTokenAuthHandler(object):
     """Super class for the handler using TokenAuthorizationMixin."""
+
     is_prepared = False
 
     def prepare(self):
@@ -21,6 +22,7 @@ class SuperTokenAuthHandler(object):
 
 class CustomTokenAuthHandler(TokenAuthorizationMixin, SuperTokenAuthHandler):
     """Implementation that uses the TokenAuthorizationMixin for testing."""
+
     def __init__(self, token=""):
         self.settings = {"kg_auth_token": token}
         self.arguments = {}
@@ -42,6 +44,7 @@ def auth_mixin():
 
 class TestTokenAuthMixin:
     """Unit tests the Token authorization mixin."""
+
     def test_no_token_required(self, auth_mixin):
         """Status should be None."""
         auth_mixin.request = Mock({})
@@ -121,6 +124,7 @@ class TestTokenAuthMixin:
 
 class CustomJSONErrorsHandler(JSONErrorsMixin):
     """Implementation that uses the JSONErrorsMixin for testing."""
+
     def __init__(self):
         self.headers = {}
         self.response = None
@@ -150,6 +154,7 @@ def errors_mixin():
 
 class TestJSONErrorsMixin:
     """Unit tests the JSON errors mixin."""
+
     def test_status(self, errors_mixin):
         """Status should be set on the response."""
         errors_mixin.write_error(404)

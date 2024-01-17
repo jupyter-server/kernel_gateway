@@ -20,6 +20,7 @@ class SwaggerSpecBuilder(object):
     value : dict
         Python object representation of the Swagger spec
     """
+
     def __init__(self, cell_parser):
         self.cell_parser = cell_parser
         self.value = self.cell_parser.get_default_api_spec()
@@ -37,9 +38,9 @@ class SwaggerSpecBuilder(object):
         if self.cell_parser.is_api_cell(cell_source):
             path_name, verb = self.cell_parser.get_cell_endpoint_and_verb(cell_source)
             path_value = self.cell_parser.get_path_content(cell_source)
-            if not path_name in self.value['paths']:
-                self.value['paths'][path_name] = {}
-            self.value['paths'][path_name][verb.lower()] = path_value
+            if path_name not in self.value["paths"]:
+                self.value["paths"][path_name] = {}
+            self.value["paths"][path_name][verb.lower()] = path_value
 
     def set_default_title(self, path):
         """Stores the root of a notebook filename as the API title, if one is
@@ -50,9 +51,11 @@ class SwaggerSpecBuilder(object):
         path : url
             Path to the notebook file defining the API
         """
-        if 'info' in self.value and 'title' not in self.value['info']:
+        if "info" in self.value and "title" not in self.value["info"]:
             basename = os.path.basename(path)
-            self.value['info']['title'] = basename.split('.')[0] if basename.find('.') > 0 else basename
+            self.value["info"]["title"] = (
+                basename.split(".")[0] if basename.find(".") > 0 else basename
+            )
 
     def build(self):
         """Gets the specification.

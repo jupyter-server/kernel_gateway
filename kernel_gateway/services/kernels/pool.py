@@ -83,6 +83,7 @@ class ManagedKernelPool(KernelPool):
     kernel_semaphore : tornado.locks.Semaphore
         Semaphore that controls access to the kernel pool
     """
+
     kernel_clients: dict
     on_recv_funcs: dict
     kernel_pool: list
@@ -155,9 +156,8 @@ class ManagedKernelPool(KernelPool):
         msg_list : list
             List of 0mq messages
         """
-        if not kernel_id in self.on_recv_funcs:
-            self.log.warning(
-                "Could not find callback for kernel_id: {}".format(kernel_id))
+        if kernel_id not in self.on_recv_funcs:
+            self.log.warning("Could not find callback for kernel_id: {}".format(kernel_id))
             return
         idents, msg_list = session.feed_identities(msg_list)
         msg = session.deserialize(msg_list)
@@ -200,8 +200,7 @@ class ManagedKernelPool(KernelPool):
         self.on_recv_funcs[kernel_id] = func
 
     async def shutdown(self):
-        """Shuts down all kernels and their clients.
-        """
+        """Shuts down all kernels and their clients."""
         await self.managed_pool_initialized
         for kid in self.kernel_clients:
             self.kernel_clients[kid].stop_channels()

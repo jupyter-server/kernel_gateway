@@ -88,3 +88,19 @@ features = ["test"]
 dependencies = ["coverage[toml]", "pytest-cov"]
 [tool.hatch.envs.cov.scripts]
 test = "python -m pytest -vv --cov kernel_gateway --cov-branch --cov-report term-missing:skip-covered {args}"
+
+[tool.ruff.lint]
+unfixable = [
+  # Don't touch print statements
+  "T201",
+  # Don't touch unused imports
+  "F403",
+  # Don't touch noqa lines
+  "RUF100",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.format]
+docstring-code-format = true

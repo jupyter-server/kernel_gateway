@@ -13,33 +13,32 @@ jobs:
     strategy:
       matrix:
         python:
-        - "3.8"
-        - "3.9"
-        - "3.10"
-        - "3.11"
-        - "3.12"
+          - "3.8"
+          - "3.9"
+          - "3.10"
+          - "3.11"
+          - "3.12"
 
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Base Setup
+        uses: jupyterlab/maintainer-tools/.github/actions/base-setup@v1
 
-    - name: Base Setup
-      uses: jupyterlab/maintainer-tools/.github/actions/base-setup@v1
+      - name: Install dependencies
+        run: |
+          pip install -e .
+          pip freeze
 
-    - name: Install dependencies
-      run: |
-        pip install -e .
-        pip freeze
+      - name: Show help
+        run: jupyter kernelgateway --help
 
-    - name: Show help
-      run: jupyter kernelgateway --help
+      - name: Run tests
+        run: hatch run cov:test
+        env:
+          ASYNC_TEST_TIMEOUT: 10
 
-    - name: Run tests
-      run: hatch run cov:test
-      env:
-        ASYNC_TEST_TIMEOUT: 10
-
-    - name: Build docs
-      run: hatch run docs:build
+      - name: Build docs
+        run: hatch run docs:build

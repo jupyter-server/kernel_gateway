@@ -21,9 +21,7 @@ class SeedingMappingKernelManager(AsyncMappingKernelManager):
         return os.getcwd()
 
     def _kernel_manager_class_default(self):
-        return (
-            "kernel_gateway.services.kernels.manager.KernelGatewayIOLoopKernelManager"
-        )
+        return "kernel_gateway.services.kernels.manager.KernelGatewayIOLoopKernelManager"
 
     @property
     def seed_kernelspec(self) -> Optional[str]:
@@ -44,9 +42,7 @@ class SeedingMappingKernelManager(AsyncMappingKernelManager):
             if self.parent.force_kernel_name:
                 self._seed_kernelspec = self.parent.force_kernel_name
             else:
-                self._seed_kernelspec = self.parent.seed_notebook["metadata"][
-                    "kernelspec"
-                ]["name"]
+                self._seed_kernelspec = self.parent.seed_notebook["metadata"]["kernelspec"]["name"]
         else:
             self._seed_kernelspec = None
 
@@ -89,9 +85,7 @@ class SeedingMappingKernelManager(AsyncMappingKernelManager):
         """
         if self.parent.force_kernel_name:
             kwargs["kernel_name"] = self.parent.force_kernel_name
-        kernel_id = await super(SeedingMappingKernelManager, self).start_kernel(
-            *args, **kwargs
-        )
+        kernel_id = await super(SeedingMappingKernelManager, self).start_kernel(*args, **kwargs)
 
         if kernel_id and self.seed_source is not None:
             # Only run source if the kernel spec matches the notebook kernel spec
@@ -122,9 +116,7 @@ class SeedingMappingKernelManager(AsyncMappingKernelManager):
                                 client.stop_channels()
                                 # Shutdown the kernel
                                 await self.shutdown_kernel(kernel_id)
-                                raise RuntimeError(
-                                    "Error seeding kernel memory", msg["content"]
-                                )
+                                raise RuntimeError("Error seeding kernel memory", msg["content"])
                 # Shutdown the channels to remove any lingering ZMQ messages
                 client.stop_channels()
         return kernel_id

@@ -41,10 +41,10 @@ You may specify path parameters when registering an endpoint by prepending a `:`
 
 The `REQUEST` object currently contains the following properties:
 
-* `body` - The value of the body, see the [Body And Content Type](#request-content-type-and-request-body-processing) section below
-* `args` - An object with keys representing query parameter names and their associated values. A query parameter name may be specified multiple times in a valid URL, and so each value is a sequence (e.g., list, array) of strings from the original URL.
-* `path` - An object of key-value pairs representing path parameters and their values.
-* `headers` - An object of key-value pairs where a key is a HTTP header name and a value is the HTTP header value. If there are multiple values are specified for a  header, the value will be an array.
+- `body` - The value of the body, see the [Body And Content Type](#request-content-type-and-request-body-processing) section below
+- `args` - An object with keys representing query parameter names and their associated values. A query parameter name may be specified multiple times in a valid URL, and so each value is a sequence (e.g., list, array) of strings from the original URL.
+- `path` - An object of key-value pairs representing path parameters and their values.
+- `headers` - An object of key-value pairs where a key is a HTTP header name and a value is the HTTP header value. If there are multiple values are specified for a  header, the value will be an array.
 
 {#request-content-type-and-request-body-processing}
 
@@ -52,17 +52,17 @@ The `REQUEST` object currently contains the following properties:
 
 If the HTTP request to the kernel gateway has a `Content-Type` header the value of `REQUEST.body` may change. Below is the list of outcomes for various mime-types:
 
-* `application/json` -  The `REQUEST.body` will be an object of key-value pairs representing the request body
-* `multipart/form-data` and `application/x-www-form-urlencoded` -  The `REQUEST.body` will be an object of key-value pairs representing the parameters and their values. Files are currently not supported for `multipart/form-data`
-* `text/plain` -  The `REQUEST.body` will be the string value of the body
-* All other types will be sent as strings
+- `application/json` -  The `REQUEST.body` will be an object of key-value pairs representing the request body
+- `multipart/form-data` and `application/x-www-form-urlencoded` -  The `REQUEST.body` will be an object of key-value pairs representing the parameters and their values. Files are currently not supported for `multipart/form-data`
+- `text/plain` -  The `REQUEST.body` will be the string value of the body
+- All other types will be sent as strings
 
 ## Setting the Response Body
 
 The response from an annotated cell may be set in one of two ways:
 
 1. Writing to stdout in a notebook cell
-2. Emitting output in a notebook cell
+1. Emitting output in a notebook cell
 
 The first method is preferred because it is explicit: a cell writes to stdout using the appropriate language statement or function (e.g. Python `print`, Scala `println`, R `print`, etc.). The kernel gateway collects all bytes from kernel stdout and returns the entire byte string verbatim as the response body.
 

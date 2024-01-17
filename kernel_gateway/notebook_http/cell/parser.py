@@ -26,16 +26,16 @@ def first_path_param_index(endpoint):
     Examples
     --------
 
-    >>> first_path_param_index('/foo/:bar')
+    >>> first_path_param_index("/foo/:bar")
     1
-    >>> first_path_param_index('/foo/quo/:bar')
+    >>> first_path_param_index("/foo/quo/:bar")
     2
-    >>> first_path_param_index('/foo/quo/bar')
+    >>> first_path_param_index("/foo/quo/bar")
     sys.maxsize
     """
     index = sys.maxsize
-    if endpoint.find(':') >= 0:
-        index = endpoint.count('/', 0, endpoint.find(':')) - 1
+    if endpoint.find(":") >= 0:
+        index = endpoint.count("/", 0, endpoint.find(":")) - 1
     return index
 
 
@@ -66,13 +66,18 @@ class APICellParser(LoggingConfigurable):
     api_response_indicator : str
         Regex pattern for API response metadata annotations
     """
-    api_indicator = Unicode(default_value=r'{}\s+(GET|PUT|POST|DELETE)\s+(\/.*)+')
-    api_response_indicator = Unicode(default_value=r'{}\s+ResponseInfo\s+(GET|PUT|POST|DELETE)\s+(\/.*)+')
+
+    api_indicator = Unicode(default_value=r"{}\s+(GET|PUT|POST|DELETE)\s+(\/.*)+")
+    api_response_indicator = Unicode(
+        default_value=r"{}\s+ResponseInfo\s+(GET|PUT|POST|DELETE)\s+(\/.*)+"
+    )
 
     def __init__(self, comment_prefix, notebook_cells=None, **kwargs):
         super().__init__(**kwargs)
         self.kernelspec_api_indicator = re.compile(self.api_indicator.format(comment_prefix))
-        self.kernelspec_api_response_indicator = re.compile(self.api_response_indicator.format(comment_prefix))
+        self.kernelspec_api_response_indicator = re.compile(
+            self.api_response_indicator.format(comment_prefix)
+        )
 
     def is_api_cell(self, cell_source):
         """Gets if the cell source is annotated as an API endpoint.
@@ -143,11 +148,7 @@ class APICellParser(LoggingConfigurable):
         Object describing the supported operation, at minimum, guidance for
         the eventual response output.
         """
-        return {
-            'responses': {
-                200: {'description': 'Success'}
-            }
-        }
+        return {"responses": {200: {"description": "Success"}}}
 
     def endpoints(self, source_cells, sort_func=first_path_param_index):
         """Gets the list of all annotated endpoint HTTP paths and verbs.
@@ -173,8 +174,8 @@ class APICellParser(LoggingConfigurable):
                 uri = matched.group(2).strip()
                 verb = matched.group(1)
 
-                endpoints.setdefault(uri, {}).setdefault(verb, '')
-                endpoints[uri][verb] += cell_source + '\n'
+                endpoints.setdefault(uri, {}).setdefault(verb, "")
+                endpoints[uri][verb] += cell_source + "\n"
 
         sorted_keys = sorted(endpoints, key=sort_func, reverse=True)
         return [(key, endpoints[key]) for key in sorted_keys]
@@ -203,8 +204,8 @@ class APICellParser(LoggingConfigurable):
                 uri = matched.group(2).strip()
                 verb = matched.group(1)
 
-                endpoints.setdefault(uri, {}).setdefault(verb, '')
-                endpoints[uri][verb] += cell_source + '\n'
+                endpoints.setdefault(uri, {}).setdefault(verb, "")
+                endpoints[uri][verb] += cell_source + "\n"
         return endpoints
 
     def get_default_api_spec(self):
@@ -214,7 +215,7 @@ class APICellParser(LoggingConfigurable):
         dictionary
             Dictionary with a root "swagger" property
         """
-        return {'swagger': '2.0', 'paths': {}, 'info': {'version': '0.0.0'}}
+        return {"swagger": "2.0", "paths": {}, "info": {"version": "0.0.0"}}
 
 
 def create_parser(*args, **kwargs):
