@@ -1,11 +1,13 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
 
-import os
 import logging
-import pytest
+import os
 from binascii import hexlify
+
+import pytest
 from traitlets.config import Config
+
 from kernel_gateway.gatewayapp import KernelGatewayApp
 
 pytest_plugins = ["pytest_jupyter.jupyter_core", "pytest_jupyter.jupyter_server"]
@@ -92,13 +94,13 @@ def jp_server_cleanup(jp_asyncio_loop):
     try:
         jp_asyncio_loop.run_until_complete(app.async_shutdown())
     except (RuntimeError, SystemExit) as e:
-        print("ignoring cleanup error", e)
+        print("ignoring cleanup error", e)  # noqa: T201
     if hasattr(app, "kernel_manager"):
         app.kernel_manager.context.destroy()
     KernelGatewayApp.clear_instance()
 
 
-@pytest.fixture
+@pytest.fixture()
 def jp_auth_header(jp_serverapp):
     """Configures an authorization header using the token from the serverapp fixture."""
     return {"Authorization": f"token {jp_serverapp.identity_provider.token}"}

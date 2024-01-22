@@ -2,24 +2,25 @@
 # Distributed under the terms of the Modified BSD License.
 """Tests for notebook request utilities."""
 
-import unittest
 import json
+import unittest
+
 from kernel_gateway.notebook_http.request_utils import (
     format_request,
-    parse_body,
-    parameterize_path,
     headers_to_dict,
+    parameterize_path,
     parse_args,
+    parse_body,
 )
 
 
 class MockRequest(dict):
     def __init__(self, *args, **kwargs):
-        super(MockRequest, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.__dict__ = self
 
 
-class MockHeaders(object):
+class MockHeaders:
     def __init__(self, headers, **kwargs):
         self.headers = headers
 
@@ -151,7 +152,7 @@ class TestRequestUtils(unittest.TestCase):
         )
 
     def test_format_request_code_escaped(self):
-        """Should handle backslash escaped characeters in headers."""
+        """Should handle backslash escaped characters in headers."""
         test_request = """{"body": "", "headers": {"Accept-Language": "en-US,en;q=0.8",
                         "If-None-Match": "\"\"9a28a9262f954494a8de7442c63d6d0715ce0998\"\"",
                         "Accept-Encoding": "gzip, deflate, sdch"}, "args": {}, "path": {}}"""

@@ -2,22 +2,24 @@
 # Distributed under the terms of the Modified BSD License.
 """Tornado handlers for invoking notebook cells as web APIs."""
 
-import os
 import json
-import tornado.web
-from tornado.log import access_log
+import os
+from functools import partial
 from typing import Optional
+
+import tornado.web
+from tornado.concurrent import Future
+from tornado.log import access_log
+
+from ..mixins import CORSMixin, JSONErrorsMixin, TokenAuthorizationMixin
+from .errors import CodeExecutionError, UnsupportedMethodError
 from .request_utils import (
-    parse_body,
-    parse_args,
     format_request,
     headers_to_dict,
-    parameterize_path,
+    parameterize_path,  # noqa: F401
+    parse_args,
+    parse_body,
 )
-from tornado.concurrent import Future
-from ..mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
-from functools import partial
-from .errors import UnsupportedMethodError, CodeExecutionError
 
 
 class NotebookAPIHandler(
@@ -126,12 +128,12 @@ class NotebookAPIHandler(
                 # Only take stream output if it is on stdout or if the kernel
                 # is non-confirming and does not name the stream
                 if "name" not in msg["content"] or msg["content"]["name"] == "stdout":
-                    result_accumulator["stream"].append((msg["content"]["text"]))
+                    result_accumulator["stream"].append(msg["content"]["text"])
             # Store the error message
             elif msg["header"]["msg_type"] == "error":
                 error_name = msg["content"]["ename"]
                 error_value = msg["content"]["evalue"]
-                result_accumulator["error"] = "Error {}: {} \n".format(error_name, error_value)
+                result_accumulator["error"] = f"Error {error_name}: {error_value} \n"
 
     def execute_code(self, kernel_client, kernel_id, source_code):
         """Executes `source_code` on the kernel specified.
@@ -147,7 +149,7 @@ class NotebookAPIHandler(
         kernel_id : str
             ID of the kernel from the pool that will execute the request
         source_code : str
-            Source code to execut
+            Source code to execute
 
         Returns
         -------
@@ -199,7 +201,7 @@ class NotebookAPIHandler(
             request_code = format_request(request, self.kernel_language)
 
             # Run the request and source code and yield until there's a result
-            access_log.debug("Request code for notebook cell is: {}".format(request_code))
+            access_log.debug(f"Request code for notebook cell is: {request_code}")
             await self.execute_code(kernel_client, kernel_id, request_code)
             source_result = await self.execute_code(kernel_client, kernel_id, source_code)
 
@@ -264,7 +266,7 @@ class NotebookDownloadHandler(
 
     def initialize(self, path: str, default_filename: Optional[str] = None):
         self.dirname, self.filename = os.path.split(path)
-        super(NotebookDownloadHandler, self).initialize(self.dirname)
+        super().initialize(self.dirname)
 
     async def get(self, include_body: bool = True):
         res = await super().get(path=self.filename, include_body=include_body)

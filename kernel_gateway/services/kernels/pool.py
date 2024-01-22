@@ -3,14 +3,13 @@
 """Kernel pools that track and delegate to kernels."""
 
 import asyncio
-import tornado.gen
-from tornado.locks import Semaphore
-from tornado.concurrent import Future
-from traitlets.config.configurable import LoggingConfigurable
 from typing import Awaitable, List, Optional
 
 from jupyter_client.session import Session
 from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
+from tornado.concurrent import Future
+from tornado.locks import Semaphore
+from traitlets.config.configurable import LoggingConfigurable
 
 
 class KernelPool(LoggingConfigurable):
@@ -104,7 +103,7 @@ class ManagedKernelPool(KernelPool):
 
         self.kernel_semaphore = Semaphore(prespawn_count)
 
-        await super(ManagedKernelPool, self).initialize(prespawn_count, kernel_manager)
+        await super().initialize(prespawn_count, kernel_manager)
 
         kernel_ids = self.kernel_manager.list_kernel_ids()
 
@@ -157,7 +156,7 @@ class ManagedKernelPool(KernelPool):
             List of 0mq messages
         """
         if kernel_id not in self.on_recv_funcs:
-            self.log.warning("Could not find callback for kernel_id: {}".format(kernel_id))
+            self.log.warning(f"Could not find callback for kernel_id: {kernel_id}")
             return
         idents, msg_list = session.feed_identities(msg_list)
         msg = session.deserialize(msg_list)
@@ -207,4 +206,4 @@ class ManagedKernelPool(KernelPool):
             await self.kernel_manager.shutdown_kernel(kid, now=True)
 
         # Any remaining kernels that were not created for our pool should be shutdown
-        await super(ManagedKernelPool, self).shutdown()
+        await super().shutdown()

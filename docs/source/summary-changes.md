@@ -97,7 +97,7 @@ See `git log` for a more detailed summary of changes.
 - Add support for specifying notebook-http APIs using full Swagger specs
 - Add option to serve static web assets from Tornado in notebook-http mode
 - Add command line aliases for common options (e.g., `--ip`)
-- Fix Tornado 4.4 compatbility: sending an empty body string with a 204 response
+- Fix Tornado 4.4 compatibility: sending an empty body string with a 204 response
 
 ## 1.0
 
