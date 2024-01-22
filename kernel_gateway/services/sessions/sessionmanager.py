@@ -26,11 +26,12 @@ class SessionManager(LoggingConfigurable):
     _columns : list
         Session metadata key names
     """
+
     def __init__(self, kernel_manager, **kwargs):
         super(SessionManager, self).__init__(**kwargs)
         self.kernel_manager = kernel_manager
         self._sessions = []
-        self._columns = ['session_id', 'path', 'kernel_id']
+        self._columns = ["session_id", "path", "kernel_id"]
 
     def session_exists(self, path, *args, **kwargs) -> bool:
         """Checks to see if the session with the given path value exists.
@@ -44,13 +45,15 @@ class SessionManager(LoggingConfigurable):
         -------
         bool
         """
-        return bool([item for item in self._sessions if item['path'] == path])
+        return bool([item for item in self._sessions if item["path"] == path])
 
     def new_session_id(self) -> str:
         """Creates a uuid for a new session."""
         return str(uuid.uuid4())
 
-    async def create_session(self, path=None, kernel_name=None, kernel_id=None, *args, **kwargs) -> dict:
+    async def create_session(
+        self, path=None, kernel_name=None, kernel_id=None, *args, **kwargs
+    ) -> dict:
         """Creates a session and returns its model.
 
         Launches a kernel and stores the session metadata for later lookup.
@@ -94,9 +97,7 @@ class SessionManager(LoggingConfigurable):
         dict
             Session model with `session_id`, `path`, and `kernel_id` keys
         """
-        self._sessions.append({'session_id': session_id,
-                               'path':path,
-                               'kernel_id': kernel_id})
+        self._sessions.append({"session_id": session_id, "path": path, "kernel_id": kernel_id})
 
         return self.get_session(session_id=session_id)
 
@@ -155,7 +156,7 @@ class SessionManager(LoggingConfigurable):
         row = self.get_session_by_key(column, kwargs[column])
 
         if not row:
-            raise web.HTTPError(404, u'Session not found: %s' % kwargs[column])
+            raise web.HTTPError(404, "Session not found: %s" % kwargs[column])
 
         return self.row_to_model(row)
 
@@ -181,22 +182,22 @@ class SessionManager(LoggingConfigurable):
             # no changes
             return
 
-        row = self.get_session_by_key('session_id', session_id)
+        row = self.get_session_by_key("session_id", session_id)
 
         if not row:
             raise KeyError
 
         # if kernel_id is in kwargs, validate it prior to removing the row...
-        if 'kernel_id' in kwargs and kwargs['kernel_id'] not in self.kernel_manager:
+        if "kernel_id" in kwargs and kwargs["kernel_id"] not in self.kernel_manager:
             raise KeyError(f"Kernel '{kwargs['kernel_id']}' does not exist.")
 
         self._sessions.remove(row)
 
-        if 'path' in kwargs:
-            row['path'] = kwargs['path']
+        if "path" in kwargs:
+            row["path"] = kwargs["path"]
 
-        if 'kernel_id' in kwargs:
-            row['kernel_id'] = kwargs['kernel_id']
+        if "kernel_id" in kwargs:
+            row["kernel_id"] = kwargs["kernel_id"]
 
         self._sessions.append(row)
 
@@ -210,7 +211,7 @@ class SessionManager(LoggingConfigurable):
             `path`, and `kernel` to the kernel model looked up using the
             `kernel_id`
         """
-        if row['kernel_id'] not in self.kernel_manager:
+        if row["kernel_id"] not in self.kernel_manager:
             # The kernel was killed or died without deleting the session.
             # We can't use delete_session here because that tries to find
             # and shut down the kernel.
@@ -218,11 +219,9 @@ class SessionManager(LoggingConfigurable):
             raise KeyError
 
         model = {
-            'id': row['session_id'],
-            'notebook': {
-                'path': row['path']
-            },
-            'kernel': self.kernel_manager.kernel_model(row['kernel_id'])
+            "id": row["session_id"],
+            "notebook": {"path": row["path"]},
+            "kernel": self.kernel_manager.kernel_model(row["kernel_id"]),
         }
         return model
 
@@ -247,9 +246,9 @@ class SessionManager(LoggingConfigurable):
             If the `session_id` is not in the store
         """
         # Check that session exists before deleting
-        s = self.get_session_by_key('session_id', session_id)
+        s = self.get_session_by_key("session_id", session_id)
         if not s:
             raise KeyError
 
-        await self.kernel_manager.shutdown_kernel(s['kernel_id'])
+        await self.kernel_manager.shutdown_kernel(s["kernel_id"])
         self._sessions.remove(s)

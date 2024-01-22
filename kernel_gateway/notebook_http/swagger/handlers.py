@@ -10,13 +10,13 @@ from .builders import SwaggerSpecBuilder
 from ...mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
 
 
-class SwaggerSpecHandler(TokenAuthorizationMixin,
-                         CORSMixin,
-                         JSONErrorsMixin,
-                         tornado.web.RequestHandler):
+class SwaggerSpecHandler(
+    TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin, tornado.web.RequestHandler
+):
     """Handles requests for the Swagger specification of a notebook defined
     API.
     """
+
     output = None
 
     def initialize(self, notebook_path, source_cells, cell_parser):
@@ -34,13 +34,13 @@ class SwaggerSpecHandler(TokenAuthorizationMixin,
         if self.output is None:
             spec_builder = SwaggerSpecBuilder(cell_parser)
             for source_cell in source_cells:
-                if 'source' in source_cell:
-                    spec_builder.add_cell(source_cell['source'])
+                if "source" in source_cell:
+                    spec_builder.add_cell(source_cell["source"])
             spec_builder.set_default_title(notebook_path)
             SwaggerSpecHandler.output = json.dumps(spec_builder.build())
 
     async def get(self, **kwargs):
         """Responds with the spec in JSON format."""
-        self.set_header('Content-Type', 'application/json')
+        self.set_header("Content-Type", "application/json")
         self.set_status(200)
         await self.finish(self.output)

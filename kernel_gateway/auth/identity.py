@@ -45,7 +45,7 @@ class GatewayIdentityProvider(IdentityProvider):
         For use when a single shared token is used,
         but does not identify a user.
         """
-        name = display_name = f"Anonymous"
+        name = display_name = "Anonymous"
         initials = "An"
         color = None
         return User(name.lower(), name, display_name, initials, None, color)
