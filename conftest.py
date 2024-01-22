@@ -5,10 +5,15 @@ import logging
 import os
 from binascii import hexlify
 
-import pytest
-from traitlets.config import Config
+# isort: off
+# This must come before any Jupyter imports.
+os.environ["JUPYTER_PLATFORM_DIRS"] = "1"
+# isort: on
 
-from kernel_gateway.gatewayapp import KernelGatewayApp
+import pytest  # noqa: E402
+from traitlets.config import Config  # noqa: E402
+
+from kernel_gateway.gatewayapp import KernelGatewayApp  # noqa: E402
 
 pytest_plugins = ["pytest_jupyter.jupyter_core", "pytest_jupyter.jupyter_server"]
 

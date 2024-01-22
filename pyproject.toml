@@ -158,6 +158,7 @@ testpaths = [
 ]
 filterwarnings = [
   "error",
+  "module:datetime.datetime.utc:DeprecationWarning",
 ]
 
 [tool.repo-review]
