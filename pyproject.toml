@@ -64,10 +64,12 @@ docs = [
 
 [tool.hatch.version]
 path = "kernel_gateway/_version.py"
+validate-bump = false
 
 [tool.hatch.build.targets.sdist]
 include = [
     "/kernel_gateway",
+    "/tests"
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -197,6 +199,15 @@ exclude_lines = [
 relative_files = true
 source = ["kernel_gateway"]
 
+[tool.interrogate]
+ignore-init-module=true
+ignore-private=true
+ignore-semiprivate=true
+ignore-property-decorators=true
+ignore-nested-functions=true
+ignore-nested-classes=true
+fail-under=95
+exclude = ["docs", "etc", "scripts", "tests"]
 
 [tool.repo-review]
 ignore = ["GH102", "PC111"]
