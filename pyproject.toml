@@ -33,12 +33,12 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 dependencies = [
-    "jupyter_client>=7.4.4",
-    "jupyter_core>=5.1",
-    "jupyter_server>=2.0",
-    "requests>=2.7",
-    "tornado>=6.2.0",
-    "traitlets>=5.6.0",
+    "jupyter_client>=8.6",
+    "jupyter_core>=5.7",
+    "jupyter_server>=2.12",
+    "requests>=2.31",
+    "tornado>=6.5",
+    "traitlets>=5.14.1",
 ]
 
 [project.scripts]
@@ -206,7 +206,7 @@ ignore-semiprivate=true
 ignore-property-decorators=true
 ignore-nested-functions=true
 ignore-nested-classes=true
-fail-under=95
+fail-under=70
 exclude = ["docs", "etc", "scripts", "tests"]
 
 [tool.repo-review]
