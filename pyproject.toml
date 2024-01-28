@@ -37,7 +37,7 @@ dependencies = [
     "jupyter_core>=5.7",
     "jupyter_server>=2.12",
     "requests>=2.31",
-    "tornado>=6.5",
+    "tornado>=6.4",
     "traitlets>=5.14.1",
 ]
 
