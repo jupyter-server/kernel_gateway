@@ -4,48 +4,40 @@
 
 import asyncio
 import errno
-import importlib
-import logging
 import hashlib
 import hmac
+import importlib
+import logging
 import os
-import sys
-import signal
 import select
-import socket
+import signal
 import ssl
+import sys
 import threading
 from base64 import encodebytes
+from urllib.parse import urlparse
 
 import nbformat
-from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
-
-from urllib.parse import urlparse
-from traitlets import Unicode, Integer, Bytes, default, observe, Type, Instance, List, CBool
-
-from jupyter_core.application import JupyterApp, base_aliases
 from jupyter_client.kernelspec import KernelSpecManager
-
-from tornado import httpserver
-from tornado import web, ioloop
-from tornado.log import enable_pretty_logging, LogFormatter
-
+from jupyter_core.application import JupyterApp, base_aliases
 from jupyter_core.paths import secure_write
+from jupyter_server.auth.authorizer import AllowAllAuthorizer, Authorizer
 from jupyter_server.serverapp import random_ports
-from ._version import __version__
-from .services.sessions.sessionmanager import SessionManager
-from .services.kernels.manager import SeedingMappingKernelManager
+from jupyter_server.services.kernels.connection.base import BaseKernelWebsocketConnection
+from jupyter_server.services.kernels.connection.channels import ZMQChannelsWebsocketConnection
+from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
+from tornado import httpserver, ioloop, web
+from tornado.log import LogFormatter, enable_pretty_logging
+from traitlets import Bytes, CBool, Instance, Integer, List, Type, Unicode, default, observe
 
+from ._version import __version__
 from .auth.identity import GatewayIdentityProvider
+from .jupyter_websocket import JupyterWebsocketPersonality
 
 # Only present for generating help documentation
 from .notebook_http import NotebookHTTPPersonality
-from .jupyter_websocket import JupyterWebsocketPersonality
-
-from jupyter_server.auth.authorizer import AllowAllAuthorizer, Authorizer
-from jupyter_server.services.kernels.connection.base import BaseKernelWebsocketConnection
-from jupyter_server.services.kernels.connection.channels import ZMQChannelsWebsocketConnection
-
+from .services.kernels.manager import SeedingMappingKernelManager
+from .services.sessions.sessionmanager import SessionManager
 
 # Add additional command line aliases
 aliases = dict(base_aliases)
@@ -135,7 +127,7 @@ class KernelGatewayApp(JupyterApp):
         return os.getenv(self.base_url_env, self.base_url_default_value)
 
     # Token authorization
-    auth_token_env = "KG_AUTH_TOKEN"
+    auth_token_env = "KG_AUTH_TOKEN"  # noqa: S105
     auth_token = Unicode(
         config=True, help="Authorization token required for all requests (KG_AUTH_TOKEN env var)"
     )
@@ -196,7 +188,7 @@ class KernelGatewayApp(JupyterApp):
     trust_xheaders = CBool(
         False,
         config=True,
-        help="Use x-* header values for overriding the remote-ip, useful when application is behing a proxy. (KG_TRUST_XHEADERS env var)",
+        help="Use x-* header values for overriding the remote-ip, useful when application is behind a proxy. (KG_TRUST_XHEADERS env var)",
     )
 
     @default("trust_xheaders")
@@ -303,7 +295,7 @@ class KernelGatewayApp(JupyterApp):
             self._load_api_module(event["new"])
         except ImportError:
             # re-raise with more sensible message to help the user
-            raise ImportError("API module {} not found".format(event["new"]))
+            raise ImportError("API module {} not found".format(event["new"])) from None
 
     certfile_env = "KG_CERTFILE"
     certfile = Unicode(
@@ -506,7 +498,7 @@ class KernelGatewayApp(JupyterApp):
             # Remote file
             import requests
 
-            resp = requests.get(uri)
+            resp = requests.get(uri, timeout=200)
             resp.raise_for_status()
             notebook = nbformat.reads(resp.text, 4)
 
@@ -594,7 +586,7 @@ class KernelGatewayApp(JupyterApp):
                 raise RuntimeError(msg)
 
         api_module = self._load_api_module(self.api)
-        func = getattr(api_module, "create_personality")
+        func = api_module.create_personality
         self.personality = func(parent=self, log=self.log)
 
         self.io_loop.call_later(
@@ -701,7 +693,7 @@ class KernelGatewayApp(JupyterApp):
         for port in random_ports(self.port, self.port_retries + 1):
             try:
                 self.http_server.listen(port, self.ip)
-            except socket.error as e:
+            except OSError as e:
                 if e.errno == errno.EADDRINUSE:
                     self.log.info("The port %i is already in use, trying another port." % port)
                     continue
@@ -764,7 +756,7 @@ class KernelGatewayApp(JupyterApp):
             return
         yes = "y"
         no = "n"
-        sys.stdout.write("Shutdown this Jupyter server (%s/[%s])? " % (yes, no))
+        sys.stdout.write("Shutdown this Jupyter server (%s/[%s])? " % (yes, no))  # noqa: UP031
         sys.stdout.flush()
         r, w, x = select.select([sys.stdin], [], [], 5)
         if r:

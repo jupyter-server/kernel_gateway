@@ -2,9 +2,10 @@
 # Distributed under the terms of the Modified BSD License.
 """Tornado handlers for the base of the API."""
 
-from tornado import web
 import jupyter_server.base.handlers as server_handlers
-from ..mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
+from tornado import web
+
+from ..mixins import CORSMixin, JSONErrorsMixin, TokenAuthorizationMixin
 
 
 class APIVersionHandler(
@@ -13,8 +14,6 @@ class APIVersionHandler(
     """Extends the notebook server base API handler with token auth, CORS, and
     JSON errors.
     """
-
-    pass
 
 
 class NotFoundHandler(JSONErrorsMixin, web.RequestHandler):

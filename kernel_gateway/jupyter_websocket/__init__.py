@@ -3,15 +3,17 @@
 """Jupyter websocket personality for the Kernel Gateway"""
 
 import os
-from ..base.handlers import default_handlers as default_base_handlers
-from ..services.kernels.pool import KernelPool
-from ..services.kernels.handlers import default_handlers as default_kernel_handlers
-from ..services.kernelspecs.handlers import default_handlers as default_kernelspec_handlers
-from ..services.sessions.handlers import default_handlers as default_session_handlers
-from .handlers import default_handlers as default_api_handlers
+
 from jupyter_server.utils import url_path_join
 from traitlets import Bool, List, default
 from traitlets.config.configurable import LoggingConfigurable
+
+from ..base.handlers import default_handlers as default_base_handlers
+from ..services.kernels.handlers import default_handlers as default_kernel_handlers
+from ..services.kernels.pool import KernelPool
+from ..services.kernelspecs.handlers import default_handlers as default_kernelspec_handlers
+from ..services.sessions.handlers import default_handlers as default_session_handlers
+from .handlers import default_handlers as default_api_handlers
 
 
 class JupyterWebsocketPersonality(LoggingConfigurable):

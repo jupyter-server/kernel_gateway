@@ -3,9 +3,10 @@
 """Kernel manager that optionally seeds kernel memory."""
 import os
 from typing import List, Optional
-from traitlets import default
-from jupyter_server.services.kernels.kernelmanager import AsyncMappingKernelManager
+
 from jupyter_client.ioloop import AsyncIOLoopKernelManager
+from jupyter_server.services.kernels.kernelmanager import AsyncMappingKernelManager
+from traitlets import default
 
 
 class SeedingMappingKernelManager(AsyncMappingKernelManager):
@@ -77,7 +78,8 @@ class SeedingMappingKernelManager(AsyncMappingKernelManager):
         Run synchronously so that any exceptions thrown while seed rise up
         to the caller.
         """
-        await self.start_kernel(kernel_name=self.seed_kernelspec, *args, **kwargs)
+        kwargs["kernel_name"] = self.seed_kernelspec
+        await self.start_kernel(*args, **kwargs)
 
     async def start_kernel(self, *args, **kwargs):
         """Starts a kernel and then executes a list of code cells on it if a
@@ -85,7 +87,7 @@ class SeedingMappingKernelManager(AsyncMappingKernelManager):
         """
         if self.parent.force_kernel_name:
             kwargs["kernel_name"] = self.parent.force_kernel_name
-        kernel_id = await super(SeedingMappingKernelManager, self).start_kernel(*args, **kwargs)
+        kernel_id = await super().start_kernel(*args, **kwargs)
 
         if kernel_id and self.seed_source is not None:
             # Only run source if the kernel spec matches the notebook kernel spec
@@ -137,6 +139,4 @@ class KernelGatewayIOLoopKernelManager(AsyncIOLoopKernelManager):
         env["KERNEL_GATEWAY"] = "1"
         if "KG_AUTH_TOKEN" in env:
             del env["KG_AUTH_TOKEN"]
-        return await super(KernelGatewayIOLoopKernelManager, self)._async_launch_kernel(
-            kernel_cmd, **kw
-        )
+        return await super()._async_launch_kernel(kernel_cmd, **kw)

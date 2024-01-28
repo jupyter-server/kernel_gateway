@@ -90,13 +90,13 @@ class TestSwaggerAPICellParser:
 
         expected_values = ["/hello/world", "/hello/:foo", "/:foo"]
         try:
-            for index in range(0, len(expected_values)):
+            for index in range(len(expected_values)):
                 endpoint, _ = endpoints[index]
                 assert (
                     expected_values[index] == endpoint
                 ), "Endpoint was not found in expected order"
         except IndexError:
-            raise RuntimeError(endpoints)
+            raise RuntimeError(endpoints) from None
 
     def test_endpoint_sort_custom_strategy(self):
         """Parser should sort duplicate endpoint paths using a custom sort strategy."""
@@ -122,7 +122,7 @@ class TestSwaggerAPICellParser:
         print(str(endpoints))
 
         expected_values = ["/+", "/a", "/1"]
-        for index in range(0, len(expected_values)):
+        for index in range(len(expected_values)):
             endpoint, _ = endpoints[index]
             assert expected_values[index] == endpoint, "Endpoint was not found in expected order"
 

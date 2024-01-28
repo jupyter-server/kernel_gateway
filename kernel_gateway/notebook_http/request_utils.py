@@ -5,6 +5,7 @@
 import json
 import re
 from typing import List, Union
+
 from tornado.httputil import HTTPHeaders, HTTPServerRequest
 
 _named_param_regex = re.compile(r"(:([^/\s]*))")
@@ -50,7 +51,7 @@ def parameterize_path(path: str) -> str:
     """
     matches = re.findall(_named_param_regex, path)
     for match in matches:
-        path = path.replace(match[0], r"(?P<{}>[^\/]+)".format(match[1]))
+        path = path.replace(match[0], rf"(?P<{match[1]}>[^\/]+)")
     return path.strip()
 
 
@@ -84,7 +85,7 @@ def parse_body(request: HTTPServerRequest) -> Union[str, dict]:
         # will treat the body as text
         try:
             return_body = json.loads(body)
-        except Exception:
+        except Exception:  # noqa: S110
             pass
     return return_body
 

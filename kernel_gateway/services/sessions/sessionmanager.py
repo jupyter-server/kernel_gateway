@@ -3,9 +3,10 @@
 """Session manager that keeps all its metadata in memory."""
 
 import uuid
+from typing import List, Optional
+
 from tornado import web
 from traitlets.config.configurable import LoggingConfigurable
-from typing import List, Optional
 
 
 class SessionManager(LoggingConfigurable):
@@ -28,7 +29,7 @@ class SessionManager(LoggingConfigurable):
     """
 
     def __init__(self, kernel_manager, **kwargs):
-        super(SessionManager, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.kernel_manager = kernel_manager
         self._sessions = []
         self._columns = ["session_id", "path", "kernel_id"]

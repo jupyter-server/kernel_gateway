@@ -8,12 +8,8 @@ class CodeExecutionError(Exception):
     request.
     """
 
-    pass
-
 
 class UnsupportedMethodError(Exception):
     """Raised when a notebook-defined API does not support the requested HTTP
     method.
     """
-
-    pass

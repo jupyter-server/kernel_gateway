@@ -3,14 +3,15 @@
 """Tests for handler mixins."""
 
 import json
-import pytest
 from unittest.mock import Mock
+
+import pytest
 from tornado import web
 
-from kernel_gateway.mixins import TokenAuthorizationMixin, JSONErrorsMixin
+from kernel_gateway.mixins import JSONErrorsMixin, TokenAuthorizationMixin
 
 
-class SuperTokenAuthHandler(object):
+class SuperTokenAuthHandler:
     """Super class for the handler using TokenAuthorizationMixin."""
 
     is_prepared = False
@@ -36,10 +37,10 @@ class CustomTokenAuthHandler(TokenAuthorizationMixin, SuperTokenAuthHandler):
         return self.arguments.get(name, default)
 
 
-@pytest.fixture
+@pytest.fixture()
 def auth_mixin():
     auth_mixin_instance = CustomTokenAuthHandler("YouKnowMe")
-    yield auth_mixin_instance
+    return auth_mixin_instance
 
 
 class TestTokenAuthMixin:
@@ -146,10 +147,10 @@ class CustomJSONErrorsHandler(JSONErrorsMixin):
         self.headers[name] = value
 
 
-@pytest.fixture
+@pytest.fixture()
 def errors_mixin():
     errors_mixin_instance = CustomJSONErrorsHandler()
-    yield errors_mixin_instance
+    return errors_mixin_instance
 
 
 class TestJSONErrorsMixin:
@@ -164,7 +165,7 @@ class TestJSONErrorsMixin:
         assert response["message"] == ""
 
     def test_custom_status(self, errors_mixin):
-        """Custom reason from exeception should be set in the response."""
+        """Custom reason from exception should be set in the response."""
         exc = web.HTTPError(500, reason="fake-reason")
         errors_mixin.write_error(500, exc_info=[None, exc])
 
@@ -174,7 +175,7 @@ class TestJSONErrorsMixin:
         assert response["message"] == ""
 
     def test_log_message(self, errors_mixin):
-        """Custom message from exeception should be set in the response."""
+        """Custom message from exception should be set in the response."""
         exc = web.HTTPError(410, log_message="fake-message")
         errors_mixin.write_error(410, exc_info=[None, exc])
 
