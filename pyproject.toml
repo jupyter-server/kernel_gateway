@@ -161,5 +161,24 @@ filterwarnings = [
   "module:datetime.datetime.utc:DeprecationWarning",
 ]
 
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  "def __repr__",
+  "if self.debug:",
+  "if settings.DEBUG",
+  "raise AssertionError",
+  "raise NotImplementedError",
+  "if 0:",
+  "if __name__ == .__main__.:",
+  "class .*\bProtocol\\):",
+  "@(abc\\.)?abstractmethod",
+]
+
+[tool.coverage.run]
+relative_files = true
+source = ["kernel_gateway"]
+
+
 [tool.repo-review]
 ignore = ["GH102", "PC111"]
