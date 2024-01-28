@@ -1,13 +1,13 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
 """Tests for basic gateway app behavior."""
+import os
 import ssl
 
 import nbformat
-import os
 
-from kernel_gateway.gatewayapp import KernelGatewayApp
 from kernel_gateway import __version__
+from kernel_gateway.gatewayapp import KernelGatewayApp
 
 RESOURCES = os.path.join(os.path.dirname(__file__), "resources")
 

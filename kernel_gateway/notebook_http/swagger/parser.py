@@ -4,9 +4,14 @@
 
 import json
 import re
-from kernel_gateway.notebook_http.cell.parser import first_path_param_index, APICellParser
+
 from traitlets import List, Unicode
 from traitlets.config.configurable import LoggingConfigurable
+
+from kernel_gateway.notebook_http.cell.parser import (  # noqa: F401
+    APICellParser,
+    first_path_param_index,
+)
 
 
 def _swaggerlet_from_markdown(cell_source):
@@ -17,11 +22,11 @@ def _swaggerlet_from_markdown(cell_source):
     lines = cell_source.splitlines()
     # pull out the first block comment
     if len(lines) > 2:
-        for i in range(0, len(lines)):
+        for i in range(len(lines)):
             if lines[i].startswith("```"):
                 lines = lines[i + 1 :]
                 break
-        for i in range(0, len(lines)):
+        for i in range(len(lines)):
             if lines[i].startswith("```"):
                 lines = lines[:i]
                 break
@@ -70,7 +75,7 @@ class SwaggerCellParser(LoggingConfigurable):
     notebook_cells = List()
 
     def __init__(self, comment_prefix, notebook_cells, **kwargs):
-        super(SwaggerCellParser, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.notebook_cells = notebook_cells
         self.kernelspec_operation_indicator = re.compile(
             self.operation_indicator.format(comment_prefix)
@@ -78,7 +83,7 @@ class SwaggerCellParser(LoggingConfigurable):
         self.kernelspec_operation_response_indicator = re.compile(
             self.operation_response_indicator.format(comment_prefix)
         )
-        self.swagger = dict()
+        self.swagger = {}
         operationIdsFound = []
         operationIdsDeclared = []
         for cell in self.notebook_cells:

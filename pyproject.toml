@@ -88,3 +88,78 @@ features = ["test"]
 dependencies = ["coverage[toml]", "pytest-cov"]
 [tool.hatch.envs.cov.scripts]
 test = "python -m pytest -vv --cov kernel_gateway --cov-branch --cov-report term-missing:skip-covered {args}"
+
+[tool.ruff.lint]
+extend-select = [
+  "B",           # flake8-bugbear
+  "I",           # isort
+  "C4",          # flake8-comprehensions
+  #"EM",          # flake8-errmsg
+  "ICN",         # flake8-import-conventions
+  #"G",           # flake8-logging-format
+  "PGH",         # pygrep-hooks
+  "PIE",         # flake8-pie
+  "PL",          # pylint
+  #"PTH",         # flake8-use-pathlib
+  #"PT",          # flake8-pytest-style
+  #"RET",         # flake8-return
+  #"RUF",         # Ruff-specific
+  #"SIM",         # flake8-simplify
+  "T20",         # flake8-print
+  "UP",          # pyupgrade
+  "YTT",         # flake8-2020
+  "EXE",         # flake8-executable
+  "PYI",         # flake8-pyi
+  "S",           # flake8-bandit
+]
+ignore = [
+  "PLR",    # Design related pylint codes
+  "S101",   # Use of `assert` detected
+]
+unfixable = [
+  # Don't touch print statements
+  "T201",
+  # Don't touch unused imports
+  "F401",
+  "F403",
+  # Don't touch noqa lines
+  "RUF100",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.8"
+explicit_package_bases = true
+strict = true
+pretty = true
+warn_unreachable = true
+disable_error_code = ["no-untyped-def", "no-untyped-call"]
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+
+[tool.ruff.lint.per-file-ignores]
+"kernel_gateway/tests/*" = ["T201", "S", "RET", "EM"]
+"etc/*" = ["T201", "S", "RET"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+xfail_strict = true
+log_cli_level = "info"
+addopts = [
+  "-ra", "--durations=10", "--color=yes", "--doctest-modules",
+   "--showlocals", "--strict-markers", "--strict-config"
+]
+testpaths = [
+    "kernel_gateway/tests/"
+]
+filterwarnings = [
+  "error",
+  "module:datetime.datetime.utc:DeprecationWarning",
+]
+
+[tool.repo-review]
+ignore = ["GH102", "PC111"]

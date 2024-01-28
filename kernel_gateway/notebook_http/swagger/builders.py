@@ -5,7 +5,7 @@
 import os
 
 
-class SwaggerSpecBuilder(object):
+class SwaggerSpecBuilder:
     """Builds a Swagger specification.
 
     Parameters

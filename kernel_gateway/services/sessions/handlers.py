@@ -2,9 +2,10 @@
 # Distributed under the terms of the Modified BSD License.
 """Tornado handlers for session CRUD."""
 
-import tornado
 import jupyter_server.services.sessions.handlers as server_handlers
-from ...mixins import TokenAuthorizationMixin, CORSMixin, JSONErrorsMixin
+import tornado
+
+from ...mixins import CORSMixin, JSONErrorsMixin, TokenAuthorizationMixin
 
 
 class SessionRootHandler(
@@ -23,10 +24,10 @@ class SessionRootHandler(
         tornado.web.HTTPError
             If kg_list_kernels is False, respond with 403 Forbidden
         """
-        if "kg_list_kernels" not in self.settings or self.settings["kg_list_kernels"] != True:
+        if "kg_list_kernels" not in self.settings or self.settings["kg_list_kernels"] is not True:
             raise tornado.web.HTTPError(403, "Forbidden")
         else:
-            await super(SessionRootHandler, self).get()
+            await super().get()
 
 
 default_handlers = []

@@ -2,13 +2,14 @@
 # Distributed under the terms of the Modified BSD License.
 """Mixins for Tornado handlers."""
 
-from http.client import responses
 import json
 import traceback
+from http.client import responses
+
 from tornado import web
 
 
-class CORSMixin(object):
+class CORSMixin:
     """Mixes CORS headers into tornado.web.RequestHandlers."""
 
     SETTINGS_TO_HEADERS = {
@@ -52,7 +53,7 @@ class CORSMixin(object):
         self.finish()
 
 
-class TokenAuthorizationMixin(object):
+class TokenAuthorizationMixin:
     """Mixes token auth into tornado.web.RequestHandlers and
     tornado.websocket.WebsocketHandlers.
     """
@@ -75,7 +76,7 @@ class TokenAuthorizationMixin(object):
         package.
         """
         server_token = self.settings.get("kg_auth_token")
-        if server_token and not self.request.method == "OPTIONS":
+        if server_token and self.request.method != "OPTIONS":
             client_token = self.get_argument("token", None)
             if client_token is None:
                 client_token = self.request.headers.get("Authorization")
@@ -88,7 +89,7 @@ class TokenAuthorizationMixin(object):
         return super().prepare()
 
 
-class JSONErrorsMixin(object):
+class JSONErrorsMixin:
     """Mixes `write_error` into tornado.web.RequestHandlers to respond with
     JSON format errors.
     """
