@@ -2,6 +2,30 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## 3.0.0rc0
+
+([Full Changelog](https://github.com/jupyter-server/kernel_gateway/compare/2.5.2...bdd97581cd449e11b1efbf8d5cc0b19bfaf17559))
+
+### Enhancements made
+
+- update workflows to point at main [#387](https://github.com/jupyter-server/kernel_gateway/pull/387) ([@Zsailer](https://github.com/Zsailer))
+- Use jupyter server as base provider [#384](https://github.com/jupyter-server/kernel_gateway/pull/384) ([@kevin-bates](https://github.com/kevin-bates))
+
+### Maintenance and upkeep improvements
+
+- Update GitHub Actions and Prep for Release [#394](https://github.com/jupyter-server/kernel_gateway/pull/394) ([@blink1073](https://github.com/blink1073))
+- Add formatting and lint config [#392](https://github.com/jupyter-server/kernel_gateway/pull/392) ([@blink1073](https://github.com/blink1073))
+- Apply auto-formatters [#391](https://github.com/jupyter-server/kernel_gateway/pull/391) ([@blink1073](https://github.com/blink1073))
+- Clean up packaging and add py312 support [#389](https://github.com/jupyter-server/kernel_gateway/pull/389) ([@blink1073](https://github.com/blink1073))
+
+### Contributors to this release
+
+([GitHub contributors page for this release](https://github.com/jupyter-server/kernel_gateway/graphs/contributors?from=2023-02-06&to=2024-01-29&type=c))
+
+[@blink1073](https://github.com/search?q=repo%3Ajupyter-server%2Fkernel_gateway+involves%3Ablink1073+updated%3A2023-02-06..2024-01-29&type=Issues) | [@codecov](https://github.com/search?q=repo%3Ajupyter-server%2Fkernel_gateway+involves%3Acodecov+updated%3A2023-02-06..2024-01-29&type=Issues) | [@echarles](https://github.com/search?q=repo%3Ajupyter-server%2Fkernel_gateway+involves%3Aecharles+updated%3A2023-02-06..2024-01-29&type=Issues) | [@kevin-bates](https://github.com/search?q=repo%3Ajupyter-server%2Fkernel_gateway+involves%3Akevin-bates+updated%3A2023-02-06..2024-01-29&type=Issues) | [@pre-commit-ci](https://github.com/search?q=repo%3Ajupyter-server%2Fkernel_gateway+involves%3Apre-commit-ci+updated%3A2023-02-06..2024-01-29&type=Issues) | [@welcome](https://github.com/search?q=repo%3Ajupyter-server%2Fkernel_gateway+involves%3Awelcome+updated%3A2023-02-06..2024-01-29&type=Issues) | [@Zsailer](https://github.com/search?q=repo%3Ajupyter-server%2Fkernel_gateway+involves%3AZsailer+updated%3A2023-02-06..2024-01-29&type=Issues)
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## 2.5.0 (2020-04-19)
 
 ([Full Changelog](https://github.com/jupyter/kernel_gateway/compare/2.4.3...50b26c553d7eaf6556b1ea9fd8f424388ebb2e94))
@@ -20,8 +44,6 @@
 ([GitHub contributors page for this release](https://github.com/jupyter/kernel_gateway/graphs/contributors?from=2020-08-18&to=2021-04-19&type=c))
 
 [@bgerrity](https://github.com/search?q=repo%3Ajupyter%2Fkernel_gateway+involves%3Abgerrity+updated%3A2020-08-18..2021-04-19&type=Issues) | [@dolfinus](https://github.com/search?q=repo%3Ajupyter%2Fkernel_gateway+involves%3Adolfinus+updated%3A2020-08-18..2021-04-19&type=Issues) | [@kevin-bates](https://github.com/search?q=repo%3Ajupyter%2Fkernel_gateway+involves%3Akevin-bates+updated%3A2020-08-18..2021-04-19&type=Issues) | [@mwouts](https://github.com/search?q=repo%3Ajupyter%2Fkernel_gateway+involves%3Amwouts+updated%3A2020-08-18..2021-04-19&type=Issues) | [@willingc](https://github.com/search?q=repo%3Ajupyter%2Fkernel_gateway+involves%3Awillingc+updated%3A2020-08-18..2021-04-19&type=Issues)
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## 2.4.3 (2020-08-18)
 
