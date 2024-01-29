@@ -65,10 +65,10 @@ repos:
       - id: ruff
         types_or: [python, jupyter]
         args: ["--fix", "--show-fixes"]
-        exclude: ^kernel_gateway/tests/resources/
+        exclude: ^tests/resources/
       - id: ruff-format
         types_or: [python, jupyter]
-        exclude: ^kernel_gateway/tests/resources/
+        exclude: ^tests/resources/
 
   - repo: https://github.com/scientific-python/cookie
     rev: "2023.12.21"

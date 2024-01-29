@@ -10,7 +10,8 @@ import pytest
 from tornado.httpclient import HTTPClientError
 from traitlets.config import Config
 
-from ..notebook_http.swagger.handlers import SwaggerSpecHandler
+from kernel_gateway.notebook_http.swagger.handlers import SwaggerSpecHandler
+
 from .test_gatewayapp import RESOURCES
 
 

@@ -1,5 +1,7 @@
 # Changelog
 
+<!-- <START NEW CHANGELOG ENTRY> -->
+
 ## 2.5.0 (2020-04-19)
 
 ([Full Changelog](https://github.com/jupyter/kernel_gateway/compare/2.4.3...50b26c553d7eaf6556b1ea9fd8f424388ebb2e94))
@@ -18,6 +20,8 @@
 ([GitHub contributors page for this release](https://github.com/jupyter/kernel_gateway/graphs/contributors?from=2020-08-18&to=2021-04-19&type=c))
 
 [@bgerrity](https://github.com/search?q=repo%3Ajupyter%2Fkernel_gateway+involves%3Abgerrity+updated%3A2020-08-18..2021-04-19&type=Issues) | [@dolfinus](https://github.com/search?q=repo%3Ajupyter%2Fkernel_gateway+involves%3Adolfinus+updated%3A2020-08-18..2021-04-19&type=Issues) | [@kevin-bates](https://github.com/search?q=repo%3Ajupyter%2Fkernel_gateway+involves%3Akevin-bates+updated%3A2020-08-18..2021-04-19&type=Issues) | [@mwouts](https://github.com/search?q=repo%3Ajupyter%2Fkernel_gateway+involves%3Amwouts+updated%3A2020-08-18..2021-04-19&type=Issues) | [@willingc](https://github.com/search?q=repo%3Ajupyter%2Fkernel_gateway+involves%3Awillingc+updated%3A2020-08-18..2021-04-19&type=Issues)
+
+<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## 2.4.3 (2020-08-18)
 
