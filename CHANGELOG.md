@@ -2,6 +2,16 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## 3.0.0
+
+([Full Changelog](https://github.com/jupyter-server/kernel_gateway/compare/v3.0.0rc1))
+
+### Contributors to this release
+
+([GitHub contributors page for this release](https://github.com/jupyter-server/kernel_gateway/graphs/contributors?from=2024-01-29&to=2024-02-06&type=c))
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## 3.0.0rc1
 
 ([Full Changelog](https://github.com/jupyter-server/kernel_gateway/compare/v3.0.0rc0...f88571d721e3d6270351e352063a2a8685bf1682))
@@ -15,8 +25,6 @@
 ([GitHub contributors page for this release](https://github.com/jupyter-server/kernel_gateway/graphs/contributors?from=2024-01-29&to=2024-01-29&type=c))
 
 [@blink1073](https://github.com/search?q=repo%3Ajupyter-server%2Fkernel_gateway+involves%3Ablink1073+updated%3A2024-01-29..2024-01-29&type=Issues)
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## 3.0.0rc0
 
