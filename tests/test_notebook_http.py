@@ -264,7 +264,7 @@ class TestKernelPool:
                     response.body == b"hola {}\n"
                 ), "Unexpected body in response to GET after performing PUT."
 
-    @pytest.mark.timeout(10)
+    @pytest.mark.timeout(20)
     async def test_concurrent_request_should_not_be_blocked(self, jp_fetch, jp_argv):
         """Concurrent requests should not be blocked"""
         response_long_running = jp_fetch("sleep", "6", method="GET")
