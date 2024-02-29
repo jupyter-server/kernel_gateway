@@ -721,7 +721,8 @@ class KernelGatewayApp(JupyterApp):
         if not sys.platform.startswith("win") and sys.stdin and sys.stdin.isatty():
             signal.signal(signal.SIGINT, self._handle_sigint)
         signal.signal(signal.SIGTERM, self._signal_stop)
-        signal.signal(signal.SIGQUIT, self._signal_stop)
+        if not sys.platform.startswith("win"):
+            signal.signal(signal.SIGQUIT, self._signal_stop)
 
     def _handle_sigint(self, sig, frame):
         """SIGINT handler spawns confirmation dialog"""
