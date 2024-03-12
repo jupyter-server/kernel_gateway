@@ -2,6 +2,28 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## 3.0.1
+
+([Full Changelog](https://github.com/jupyter-server/kernel_gateway/compare/v3.0.0...03a8313485357e9dde2db0751009bc2345791fbd))
+
+### Bugs fixed
+
+- Don't add signal handler for SIGQUIT on Windows [#399](https://github.com/jupyter-server/kernel_gateway/pull/399) ([@jackgerrits](https://github.com/jackgerrits))
+
+### Maintenance and upkeep improvements
+
+- Update Release Scripts [#400](https://github.com/jupyter-server/kernel_gateway/pull/400) ([@blink1073](https://github.com/blink1073))
+- Increase test timeout [#397](https://github.com/jupyter-server/kernel_gateway/pull/397) ([@blink1073](https://github.com/blink1073))
+- chore: update pre-commit hooks [#396](https://github.com/jupyter-server/kernel_gateway/pull/396) ([@pre-commit-ci](https://github.com/pre-commit-ci))
+
+### Contributors to this release
+
+([GitHub contributors page for this release](https://github.com/jupyter-server/kernel_gateway/graphs/contributors?from=2024-02-06&to=2024-03-12&type=c))
+
+[@blink1073](https://github.com/search?q=repo%3Ajupyter-server%2Fkernel_gateway+involves%3Ablink1073+updated%3A2024-02-06..2024-03-12&type=Issues) | [@jackgerrits](https://github.com/search?q=repo%3Ajupyter-server%2Fkernel_gateway+involves%3Ajackgerrits+updated%3A2024-02-06..2024-03-12&type=Issues) | [@pre-commit-ci](https://github.com/search?q=repo%3Ajupyter-server%2Fkernel_gateway+involves%3Apre-commit-ci+updated%3A2024-02-06..2024-03-12&type=Issues) | [@welcome](https://github.com/search?q=repo%3Ajupyter-server%2Fkernel_gateway+involves%3Awelcome+updated%3A2024-02-06..2024-03-12&type=Issues)
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## 3.0.0
 
 ([Full Changelog](https://github.com/jupyter-server/kernel_gateway/compare/v3.0.0rc1))
@@ -9,8 +31,6 @@
 ### Contributors to this release
 
 ([GitHub contributors page for this release](https://github.com/jupyter-server/kernel_gateway/graphs/contributors?from=2024-01-29&to=2024-02-06&type=c))
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## 3.0.0rc1
 
